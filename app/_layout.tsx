@@ -18,16 +18,16 @@ export default function RootLayout() {
                             <NativeTabs.Trigger name="home">
                                 <Label>Play4Me</Label>
                                 <Icon
-                                    sf="house.fill"
+                                    sf="music.note.list"
                                     drawable="custom_android_drawable"
                                 />
                             </NativeTabs.Trigger>
+                            <NativeTabs.Trigger name="new-playlist">
+                                <Icon sf="sparkles" />
+                                <Label>Create</Label>
+                            </NativeTabs.Trigger>
                             <NativeTabs.Trigger name="settings" role={'search'}>
                                 <Icon sf="powerplug" />
-                            </NativeTabs.Trigger>
-                            <NativeTabs.Trigger name="new-playlist">
-                                <Icon sf="music.note" />
-                                <Label>Create</Label>
                             </NativeTabs.Trigger>
                         </NativeTabs>
                     </PlaylistsProvider>

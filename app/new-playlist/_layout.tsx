@@ -6,7 +6,7 @@ export default function SearchLayout() {
             <Stack.Screen
                 name="index"
                 options={{
-                    title: 'New Playlist',
+                    title: 'Create Your Playlist',
                     headerTintColor: 'foreground',
                     headerTransparent: true,
                 }}
