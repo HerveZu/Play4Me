@@ -1,32 +1,38 @@
-import { Stack } from 'expo-router'
-import { ThemeProvider as NavThemeProvider } from '@react-navigation/native'
-
-import { useColorScheme } from '@/lib/useColorScheme'
-import { NAV_THEME } from '@/theme'
 import { StatusBar } from 'expo-status-bar'
-import '../global.css'
+import React from 'react'
+import { SpotifyProvider } from '@/providers/spotify'
+import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs'
+import { PlaylistsProvider } from '@/providers/playlists'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-export const unstable_settings = {
-    anchor: '(tabs)',
-}
+const queryClient = new QueryClient()
 
 export default function RootLayout() {
-    const { colorScheme, isDarkColorScheme } = useColorScheme()
-
     return (
         <>
-            <StatusBar
-                key={`root-status-bar-${isDarkColorScheme ? 'light' : 'dark'}`}
-                style={isDarkColorScheme ? 'light' : 'dark'}
-            />
-            <NavThemeProvider value={NAV_THEME[colorScheme]}>
-                <Stack>
-                    <Stack.Screen
-                        name="(tabs)"
-                        options={{ headerShown: false }}
-                    />
-                </Stack>
-            </NavThemeProvider>
+            <StatusBar />
+            <QueryClientProvider client={queryClient}>
+                <SpotifyProvider>
+                    <PlaylistsProvider>
+                        <NativeTabs>
+                            <NativeTabs.Trigger name="home">
+                                <Label>Play4Me</Label>
+                                <Icon
+                                    sf="house.fill"
+                                    drawable="custom_android_drawable"
+                                />
+                            </NativeTabs.Trigger>
+                            <NativeTabs.Trigger name="settings" role={'search'}>
+                                <Icon sf="powerplug" />
+                            </NativeTabs.Trigger>
+                            <NativeTabs.Trigger name="new-playlist">
+                                <Icon sf="music.note" />
+                                <Label>Create</Label>
+                            </NativeTabs.Trigger>
+                        </NativeTabs>
+                    </PlaylistsProvider>
+                </SpotifyProvider>
+            </QueryClientProvider>
         </>
     )
 }

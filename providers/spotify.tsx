@@ -8,7 +8,7 @@ import {
     useState,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Button, ButtonProps } from '@/components/nativewindui/Button'
+import { Button, ButtonProps } from '@expo/ui/swift-ui'
 
 const spotifyDiscovery = {
     authorizationEndpoint: 'https://accounts.spotify.com/authorize',
@@ -30,6 +30,7 @@ export function useSpotify(): SpotifyContextType {
 type SpotifyContextType = {
     accessToken: string | null
     setAccessToken: (accessToken: string) => void
+    disconnect: () => void
 }
 const SpotifyContext = createContext<SpotifyContextType | null>(null)
 
@@ -50,9 +51,18 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
         [setAccessToken]
     )
 
+    const disconnect = useCallback(() => {
+        setAccessToken(null)
+        AsyncStorage.removeItem(SPOTIFY_ACCESS_TOKEN_KEY)
+    }, [])
+
     return (
         <SpotifyContext.Provider
-            value={{ accessToken, setAccessToken: setAccessTokenAndStore }}
+            value={{
+                accessToken,
+                setAccessToken: setAccessTokenAndStore,
+                disconnect,
+            }}
         >
             {children}
         </SpotifyContext.Provider>
@@ -63,8 +73,8 @@ export function ConnectSpotifyButton({
     disabled,
     ...props
 }: Omit<ButtonProps, 'onPress'>) {
-    const { setAccessToken } = useSpotify()
-    const [request, response, promptAsync] = useAuthRequest(
+    const { accessToken, setAccessToken } = useSpotify()
+    const [, response, promptAsync] = useAuthRequest(
         {
             clientId: '4f4a8c46176f47aa9c64257361e5d955',
             scopes: ['user-read-playback-state', 'user-modify-playback-state'],
@@ -82,7 +92,7 @@ export function ConnectSpotifyButton({
 
     return (
         <Button
-            disabled={!request || disabled}
+            disabled={!!accessToken || disabled}
             onPress={() => promptAsync()}
             {...props}
         />
