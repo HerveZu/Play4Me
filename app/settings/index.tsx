@@ -1,9 +1,16 @@
 import { Button, Form, Host, Section, Text } from '@expo/ui/swift-ui'
 import { ConnectSpotifyButton, useSpotify } from '@/providers/spotify'
+import { usePlaylists } from '@/providers/playlists'
+import { useMutation } from '@tanstack/react-query'
 
 export default function SettingsPage() {
     const { accessToken, disconnect } = useSpotify()
+    const { playlists, clearAll } = usePlaylists()
     const connected = !!accessToken
+
+    const { isPending, mutate: clearAllPlaylists } = useMutation({
+        mutationFn: clearAll,
+    })
 
     return (
         <Host style={{ flex: 1 }}>
@@ -24,6 +31,16 @@ export default function SettingsPage() {
                         )}
                     </Host>
                 </Section>
+
+                <Host>
+                    <Button
+                        role={'destructive'}
+                        onPress={clearAllPlaylists}
+                        disabled={!playlists.length || isPending}
+                    >
+                        Clear Playlists
+                    </Button>
+                </Host>
             </Form>
         </Host>
     )

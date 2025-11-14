@@ -1,12 +1,12 @@
 import { Stack } from 'expo-router'
 
-export default function NewPlaylistLayout() {
+export default function SettingsLayout() {
     return (
         <Stack>
             <Stack.Screen
                 name="index"
                 options={{
-                    title: 'Create Your Playlist',
+                    title: 'Settings',
                     headerTintColor: 'foreground',
                     headerTransparent: true,
                 }}

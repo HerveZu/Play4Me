@@ -35,6 +35,7 @@ type PlaylistsContextType = {
         description: string
     }) => Promise<Playlist>
     removePlaylist: (data: { id: string }) => Promise<void>
+    clearAll: () => Promise<void>
 }
 const PlaylistsContext = createContext<PlaylistsContextType | null>(null)
 
@@ -84,6 +85,10 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
         [persist, playlists]
     )
 
+    const clearAll = useCallback(async () => {
+        await persist([])
+    }, [persist])
+
     return (
         <PlaylistsContext.Provider
             value={{
@@ -91,6 +96,7 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
                 playlists,
                 addPlaylist,
                 removePlaylist,
+                clearAll,
             }}
         >
             {children}

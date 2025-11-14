@@ -19,6 +19,8 @@ export default function NewPlaylistPage() {
         },
     })
 
+    const disabled = isPending || !playlistName || !description
+
     return (
         <Host style={{ flex: 1 }}>
             <Form>
@@ -39,10 +41,9 @@ export default function NewPlaylistPage() {
 
                 <Host>
                     <Button
-                        variant="card"
+                        variant="link"
                         onPress={addToPlaylist}
-                        disabled={isPending}
-                        systemImage="plus"
+                        disabled={disabled}
                     >
                         Add to Playlists
                     </Button>
