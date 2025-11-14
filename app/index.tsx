@@ -1,9 +1,5 @@
-import { Host, Text } from '@expo/ui/swift-ui'
+import { Redirect } from 'expo-router'
 
 export default function IndexPage() {
-    return (
-        <Host style={{ flex: 1 }}>
-            <Text>Welcome to Play4Me!</Text>
-        </Host>
-    )
+    return <Redirect href="/home" />
 }
