@@ -1,4 +1,3 @@
-import { Button, ButtonProps } from 'react-native'
 import { makeRedirectUri, useAuthRequest } from 'expo-auth-session'
 import {
     createContext,
@@ -9,6 +8,7 @@ import {
     useState,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Button, ButtonProps } from '@/components/nativewindui/Button'
 
 const spotifyDiscovery = {
     authorizationEndpoint: 'https://accounts.spotify.com/authorize',
@@ -42,7 +42,7 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
 
     const setAccessTokenAndStore = useCallback(
         (accessToken: string) => {
-            setAccessToken(null)
+            setAccessToken(accessToken)
             AsyncStorage.setItem(SPOTIFY_ACCESS_TOKEN_KEY, accessToken).then(
                 () => console.log('Spotify access token saved')
             )
@@ -63,11 +63,12 @@ export function ConnectSpotifyButton({
     disabled,
     ...props
 }: Omit<ButtonProps, 'onPress'>) {
+    const { setAccessToken } = useSpotify()
     const [request, response, promptAsync] = useAuthRequest(
         {
             clientId: '4f4a8c46176f47aa9c64257361e5d955',
             scopes: ['user-read-playback-state', 'user-modify-playback-state'],
-            redirectUri: makeRedirectUri(),
+            redirectUri: makeRedirectUri({ path: '--/callback/spotify' }),
         },
         spotifyDiscovery
     )
@@ -75,11 +76,9 @@ export function ConnectSpotifyButton({
     useEffect(() => {
         if (response?.type === 'success') {
             const { code } = response.params
-            AsyncStorage.setItem(SPOTIFY_ACCESS_TOKEN_KEY, code).then(() =>
-                console.log('Spotify access token saved')
-            )
+            setAccessToken(code)
         }
-    }, [response])
+    }, [response, setAccessToken])
 
     return (
         <Button

@@ -1,15 +1,15 @@
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs'
 import React from 'react'
-import { Colors } from '@/constants/theme'
-import { useColorScheme } from '@/hooks/use-color-scheme'
+import { useColorScheme } from '@/lib/useColorScheme'
 import { SpotifyProvider } from '@/providers/spotify'
+import { COLORS } from '@/theme/colors'
 
 export default function TabsLayout() {
-    const colorScheme = useColorScheme()
+    const { colorScheme } = useColorScheme()
 
     return (
         <SpotifyProvider>
-            <NativeTabs tintColor={Colors[colorScheme ?? 'light'].tint}>
+            <NativeTabs tintColor={COLORS[colorScheme ?? 'light'].primary}>
                 <NativeTabs.Trigger name="index">
                     <Label>Home</Label>
                     <Icon sf="house.fill" drawable="custom_android_drawable" />
