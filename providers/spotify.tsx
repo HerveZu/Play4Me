@@ -1,21 +1,70 @@
-import { makeRedirectUri, useAuthRequest } from 'expo-auth-session'
+import {
+    AuthRequest,
+    DiscoveryDocument,
+    makeRedirectUri,
+    useAuthRequest,
+} from 'expo-auth-session'
 import {
     createContext,
     PropsWithChildren,
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useState,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Button, ButtonProps } from '@expo/ui/swift-ui'
+import {
+    AccessToken,
+    InMemoryCachingStrategy,
+    SpotifyApi,
+    UserProfile,
+} from '@spotify/web-api-ts-sdk'
 
-const spotifyDiscovery = {
+const spotifyDiscovery: DiscoveryDocument = {
     authorizationEndpoint: 'https://accounts.spotify.com/authorize',
     tokenEndpoint: 'https://accounts.spotify.com/api/token',
 }
 
+const SPOTIFY_CLIENT_ID = '4f4a8c46176f47aa9c64257361e5d955'
 const SPOTIFY_ACCESS_TOKEN_KEY = 'spotify_access_token'
+const SPOTIFY_REDIRECT_URI = makeRedirectUri({ path: '--/callback/spotify' })
+
+const createUrlEncodedString = (data: Record<string, string | number>) => {
+    return Object.keys(data)
+        .map(
+            (key) =>
+                encodeURIComponent(key) + '=' + encodeURIComponent(data[key])
+        )
+        .join('&')
+}
+
+async function exchangeCodeForToken(
+    { codeVerifier, redirectUri, clientId }: AuthRequest,
+    code: string
+): Promise<AccessToken> {
+    const result = await fetch(spotifyDiscovery.tokenEndpoint ?? '', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: createUrlEncodedString({
+            client_id: clientId,
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier ?? '',
+        }),
+    })
+
+    const text = await result.text()
+
+    if (!result.ok) {
+        throw new Error(
+            `Failed to exchange code for token: ${result.statusText}, ${text}`
+        )
+    }
+
+    return JSON.parse(text) as AccessToken
+}
 
 export function useSpotify(): SpotifyContextType {
     const context = useContext(SpotifyContext)
@@ -28,73 +77,91 @@ export function useSpotify(): SpotifyContextType {
 }
 
 type SpotifyContextType = {
-    accessToken: string | null
-    setAccessToken: (accessToken: string) => void
-    disconnect: () => void
+    spotifyApi: SpotifyApi | null
+    currentUser: UserProfile | null
+    connect: () => Promise<void>
+    disconnect: () => Promise<void>
 }
 const SpotifyContext = createContext<SpotifyContextType | null>(null)
 
 export function SpotifyProvider({ children }: PropsWithChildren) {
-    const [accessToken, setAccessToken] = useState<string | null>(null)
+    const [accessToken, setAccessToken] = useState<AccessToken | null>(null)
+    const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
 
-    useEffect(() => {
-        AsyncStorage.getItem(SPOTIFY_ACCESS_TOKEN_KEY).then(setAccessToken)
-    }, [setAccessToken])
-
-    const setAccessTokenAndStore = useCallback(
-        (accessToken: string) => {
-            setAccessToken(accessToken)
-            AsyncStorage.setItem(SPOTIFY_ACCESS_TOKEN_KEY, accessToken).then(
-                () => console.log('Spotify access token saved')
-            )
-        },
-        [setAccessToken]
-    )
-
-    const disconnect = useCallback(() => {
-        setAccessToken(null)
-        AsyncStorage.removeItem(SPOTIFY_ACCESS_TOKEN_KEY)
-    }, [])
-
-    return (
-        <SpotifyContext.Provider
-            value={{
-                accessToken,
-                setAccessToken: setAccessTokenAndStore,
-                disconnect,
-            }}
-        >
-            {children}
-        </SpotifyContext.Provider>
-    )
-}
-
-export function ConnectSpotifyButton({
-    disabled,
-    ...props
-}: Omit<ButtonProps, 'onPress'>) {
-    const { accessToken, setAccessToken } = useSpotify()
-    const [, response, promptAsync] = useAuthRequest(
+    const [request, response, promptAsync] = useAuthRequest(
         {
-            clientId: '4f4a8c46176f47aa9c64257361e5d955',
+            clientId: SPOTIFY_CLIENT_ID,
             scopes: ['user-read-playback-state', 'user-modify-playback-state'],
-            redirectUri: makeRedirectUri({ path: '--/callback/spotify' }),
+            redirectUri: SPOTIFY_REDIRECT_URI,
         },
         spotifyDiscovery
     )
 
-    useEffect(() => {
-        if (response?.type === 'success') {
-            const { code } = response.params
-            setAccessToken(code)
+    const disconnect = useCallback(async () => {
+        setAccessToken(null)
+        await AsyncStorage.removeItem(SPOTIFY_ACCESS_TOKEN_KEY)
+    }, [setAccessToken])
+
+    const connect = useCallback(async () => {
+        await promptAsync()
+    }, [promptAsync])
+
+    const spotifyApi = useMemo(() => {
+        try {
+            return accessToken
+                ? SpotifyApi.withAccessToken(SPOTIFY_CLIENT_ID, accessToken, {
+                      cachingStrategy: new InMemoryCachingStrategy(),
+                  })
+                : null
+        } catch {
+            disconnect()
+            return null
         }
-    }, [response, setAccessToken])
+    }, [accessToken, disconnect])
+
+    useEffect(() => {
+        AsyncStorage.getItem(SPOTIFY_ACCESS_TOKEN_KEY).then((accessToken) =>
+            setAccessToken(JSON.parse(accessToken || 'null'))
+        )
+    }, [setAccessToken])
+
+    useEffect(() => {
+        if (!spotifyApi) {
+            setCurrentUser(null)
+            return
+        }
+        spotifyApi.currentUser.profile().then(setCurrentUser).catch(disconnect)
+    }, [spotifyApi, disconnect])
+
+    const setAccessTokenAndStore = useCallback(
+        (accessToken: AccessToken) => {
+            setAccessToken(accessToken)
+            AsyncStorage.setItem(
+                SPOTIFY_ACCESS_TOKEN_KEY,
+                JSON.stringify(accessToken)
+            ).then(() => console.log('Spotify access token saved'))
+        },
+        [setAccessToken]
+    )
+
+    useEffect(() => {
+        if (request && response?.type === 'success') {
+            exchangeCodeForToken(request, response.params.code).then(
+                setAccessTokenAndStore
+            )
+        }
+    }, [request, response, setAccessTokenAndStore])
 
     return (
-        <Button
-            disabled={!!accessToken || disabled}
-            onPress={() => promptAsync()}
-            {...props}
-        />
+        <SpotifyContext.Provider
+            value={{
+                spotifyApi,
+                connect,
+                disconnect,
+                currentUser,
+            }}
+        >
+            {children}
+        </SpotifyContext.Provider>
     )
 }

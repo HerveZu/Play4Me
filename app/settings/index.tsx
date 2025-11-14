@@ -1,33 +1,44 @@
 import { Button, Form, Host, Section, Text } from '@expo/ui/swift-ui'
-import { ConnectSpotifyButton, useSpotify } from '@/providers/spotify'
+import { useSpotify } from '@/providers/spotify'
 import { usePlaylists } from '@/providers/playlists'
 import { useMutation } from '@tanstack/react-query'
 
 export default function SettingsPage() {
-    const { accessToken, disconnect } = useSpotify()
+    const { currentUser, disconnect, connect } = useSpotify()
     const { playlists, clearAll } = usePlaylists()
-    const connected = !!accessToken
 
-    const { isPending, mutate: clearAllPlaylists } = useMutation({
-        mutationFn: clearAll,
-    })
+    const { isPending: isClearingPlaylist, mutate: clearAllPlaylists } =
+        useMutation({
+            mutationFn: clearAll,
+        })
+
+    const { isPending: isDisconnectingSpotify, mutate: disconnectSpotify } =
+        useMutation({
+            mutationFn: disconnect,
+        })
 
     return (
         <Host style={{ flex: 1 }}>
             <Form>
                 <Section title="Spotify">
-                    {connected ? (
-                        <Text>{accessToken}</Text>
-                    ) : (
-                        <Text>No Spotify account linked</Text>
-                    )}
                     <Host>
-                        {!connected ? (
-                            <ConnectSpotifyButton>Connect</ConnectSpotifyButton>
+                        {currentUser ? (
+                            <Text>{currentUser.display_name}</Text>
                         ) : (
-                            <Button role={'destructive'} onPress={disconnect}>
+                            <Text>No Spotify account linked</Text>
+                        )}
+                    </Host>
+                    <Host>
+                        {currentUser ? (
+                            <Button
+                                role={'destructive'}
+                                onPress={disconnectSpotify}
+                                disabled={isDisconnectingSpotify}
+                            >
                                 Disconnect
                             </Button>
+                        ) : (
+                            <Button onPress={connect}>Connect</Button>
                         )}
                     </Host>
                 </Section>
@@ -36,7 +47,7 @@ export default function SettingsPage() {
                     <Button
                         role={'destructive'}
                         onPress={clearAllPlaylists}
-                        disabled={!playlists.length || isPending}
+                        disabled={!playlists.length || isClearingPlaylist}
                     >
                         Clear Playlists
                     </Button>
