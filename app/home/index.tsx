@@ -7,6 +7,7 @@ import { addHours, isAfter, milliseconds } from 'date-fns'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
+import { PlayingIndicator } from '@/lib/PlayingIndicator'
 
 const groq = new Groq({
     apiKey: process.env.EXPO_PUBLIC_GROQ_API_KEY,
@@ -31,7 +32,14 @@ export default function HomePage() {
             <Form>
                 <Section>
                     {playbackState?.is_playing && (
-                        <Text>{`Playing on ${playbackState.device.name}`}</Text>
+                        <Host>
+                            <PlayingIndicator />
+                            <Host>
+                                <Text
+                                    design={'rounded'}
+                                >{`Playing on ${playbackState.device.name}`}</Text>
+                            </Host>
+                        </Host>
                     )}
                 </Section>
 
