@@ -84,12 +84,6 @@ export function QueueProvider({ children }: PropsWithChildren) {
             }
 
             const playlist = await getOrCreateQueuePlaylist()
-            console.log(
-                playlist.id,
-                playlist.name,
-                tracks.map((track) => track.uri)
-            )
-
             if (playlist.tracks.total > 0) {
                 await spotifyApi.playlists.removeItemsFromPlaylist(
                     playlist.id,
