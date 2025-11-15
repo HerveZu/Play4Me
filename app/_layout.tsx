@@ -38,6 +38,7 @@ function Tabs() {
             </NativeTabs.Trigger>
             <NativeTabs.Trigger name="settings" role={'search'}>
                 <Icon sf="powerplug" />
+                <Label>Settings</Label>
             </NativeTabs.Trigger>
         </NativeTabs>
     )
