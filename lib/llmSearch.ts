@@ -43,7 +43,8 @@ export async function fetchSongsForPlaylist(
 You are an expert music curator and playlist generator. 
 Your task is to analyze the provided playlist description 
 and generate a JSON array representing the best song that fits the theme and mood.
-Add variances to the song selection and don't pick a song that is preset in the history.
+Add variances to the song selection.
+Never pick a song that is present in the history unless explicitly allowed in the playlist description.
 
 Return ${count * 2} songs, all different.
 
@@ -87,7 +88,10 @@ HISTORY: ${JSON.stringify(history)}
             1
         )
         const matchedTrack = searchResult.tracks?.items.at(0)
-        if (matchedTrack) {
+        const duplicate = recentlyPlayedTracks.items.some(
+            (item) => item.track.uri === matchedTrack?.uri
+        )
+        if (matchedTrack && !duplicate) {
             matchedTracks.push(matchedTrack)
         }
 
