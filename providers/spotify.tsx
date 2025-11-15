@@ -59,6 +59,7 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
             autoplay: true,
         })
     const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
+    const [ready, setReady] = useState(false)
 
     const [request, response, promptAsync] = useAuthRequest(
         {
@@ -83,8 +84,10 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
         } catch {
             disconnect()
             return null
+        } finally {
+            setReady(true)
         }
-    }, [accessToken, disconnect])
+    }, [accessToken, disconnect, setReady])
 
     useEffect(() => {
         if (!spotifyApi) {
@@ -118,18 +121,20 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
     )
 
     return (
-        <SpotifyContext.Provider
-            value={{
-                playbackSettings,
-                setPlaybackSettings,
-                spotifyApi,
-                connect,
-                disconnect,
-                currentUser,
-                defaultPlaybackDevice,
-            }}
-        >
-            {children}
-        </SpotifyContext.Provider>
+        ready && (
+            <SpotifyContext.Provider
+                value={{
+                    playbackSettings,
+                    setPlaybackSettings,
+                    spotifyApi,
+                    connect,
+                    disconnect,
+                    currentUser,
+                    defaultPlaybackDevice,
+                }}
+            >
+                {children}
+            </SpotifyContext.Provider>
+        )
     )
 }

@@ -19,6 +19,8 @@ export const SPOTIFY_CONST = {
         'user-read-playback-state',
         'user-modify-playback-state',
         'user-read-recently-played',
+        'playlist-read-private',
+        'playlist-modify-private',
     ],
     asyncStorageAccessKey: 'spotify_access_token',
 }

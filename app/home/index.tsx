@@ -1,24 +1,14 @@
 import { Button, Form, Host, Section, Text } from '@expo/ui/swift-ui'
 import { type Playlist, usePlaylists } from '@/providers/playlists'
 import { useSpotify } from '@/providers/spotify'
-import {
-    Device,
-    PlaybackState,
-    SpotifyApi,
-    Track,
-} from '@spotify/web-api-ts-sdk'
-import Groq from 'groq-sdk'
-import { addHours, isAfter, milliseconds } from 'date-fns'
-import { z } from 'zod'
+import { PlaybackState } from '@spotify/web-api-ts-sdk'
+import { milliseconds } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PlayingIndicator } from '@/lib/PlayingIndicator'
 import { useRouter } from 'expo-router'
-
-const groq = new Groq({
-    apiKey: process.env.EXPO_PUBLIC_GROQ_API_KEY,
-    dangerouslyAllowBrowser: true,
-})
+import { useQueue } from '@/providers/queue'
+import { fetchSongsForPlaylist } from '@/lib/llmSearch'
 
 const PLAYBACK_STATE_QUERY_KEY = 'playback-state'
 
@@ -28,12 +18,13 @@ export default function HomePage() {
     const router = useRouter()
 
     const { data: playbackState } = useQuery({
-        queryKey: [PLAYBACK_STATE_QUERY_KEY, spotifyApi ? 1 : 0],
+        queryKey: [PLAYBACK_STATE_QUERY_KEY],
         refetchInterval: milliseconds({ seconds: 30 }),
         queryFn: async () =>
-            spotifyApi ? await spotifyApi?.player.getPlaybackState() : null,
+            spotifyApi ? await spotifyApi.player.getPlaybackState() : null,
         refetchIntervalInBackground: true,
     })
+
     return (
         <Host style={{ flex: 1 }}>
             <Form>
@@ -74,13 +65,6 @@ export default function HomePage() {
     )
 }
 
-const SelectedMusicSchema = z.array(
-    z.object({
-        title: z.string().describe('The song name'),
-        artist: z.string().describe('The main artist of the song'),
-    })
-)
-
 function PlaylistSection({
     playlist,
     state,
@@ -88,30 +72,26 @@ function PlaylistSection({
     playlist: Playlist
     state: PlaybackState | null
 }) {
-    const { spotifyApi, defaultPlaybackDevice, playbackSettings } = useSpotify()
+    const { spotifyApi, defaultPlaybackDevice } = useSpotify()
     const { activePlaylist, setActivePlaylist } = usePlaylists()
     const [currentlyPlaying, setCurrentlyPlaying] = useState<string>()
     const queryClient = useQueryClient()
+    const { resetAndFocus, queueTracks, pauseQueue } = useQueue()
 
     const active = activePlaylist && activePlaylist.id === playlist.id
 
-    const queueNext = useCallback(
-        async (hardSkip: boolean) => {
-            if (!spotifyApi || !defaultPlaybackDevice) {
-                return
-            }
-            await queueFromPlaylist(playlist, {
-                hardSkip,
-                spotifyApi,
-                device: defaultPlaybackDevice,
-                autoPlay: playbackSettings.autoplay ?? false,
-            })
-        },
-        [spotifyApi, defaultPlaybackDevice, playlist, playbackSettings]
-    )
-
     const { mutate: start, isPending: isStarting } = useMutation({
-        mutationFn: () => queueNext(true),
+        mutationFn: async () => {
+            spotifyApi &&
+                defaultPlaybackDevice?.id &&
+                (await resetAndFocus(
+                    defaultPlaybackDevice.id,
+                    await fetchSongsForPlaylist(playlist, {
+                        count: 3,
+                        spotifyApi: spotifyApi,
+                    })
+                ))
+        },
         onSuccess: async () => {
             setActivePlaylist(playlist.id)
             await queryClient.invalidateQueries({
@@ -122,8 +102,7 @@ function PlaylistSection({
 
     const { mutate: stop, isPending: isStopping } = useMutation({
         mutationFn: async () => {
-            state?.device.id &&
-                (await spotifyApi?.player.pausePlayback(state.device.id))
+            state?.device.id && (await pauseQueue(state.device.id))
         },
         onSuccess: () =>
             queryClient.invalidateQueries({
@@ -143,9 +122,14 @@ function PlaylistSection({
         // queue next when track changes
         if (currentlyPlaying && currentlyPlaying !== newCurrentlyPlaying) {
             console.log('Track changed, queuing next song')
-            queueNext(false).then(() => console.log('Queued next song'))
+            fetchSongsForPlaylist(playlist, {
+                spotifyApi: spotifyApi!,
+                count: 2,
+            })
+                .then(queueTracks)
+                .then(() => console.log('Queued next song'))
         }
-    }, [currentlyPlaying, state, queueNext, active])
+    }, [currentlyPlaying, state, active, playlist, spotifyApi, queueTracks])
 
     return (
         <Section title={playlist.name}>
@@ -174,119 +158,4 @@ function PlaylistSection({
             </Host>
         </Section>
     )
-}
-
-async function queueFromPlaylist(
-    playlist: Playlist,
-    {
-        device,
-        spotifyApi,
-        hardSkip,
-        autoPlay,
-    }: {
-        hardSkip: boolean
-        device: Device
-        autoPlay: boolean
-        spotifyApi: SpotifyApi
-    }
-) {
-    const recentlyPlayedTracks =
-        await spotifyApi.player.getRecentlyPlayedTracks()
-
-    const history = recentlyPlayedTracks.items
-        .filter((track) =>
-            isAfter(new Date(track.played_at), addHours(new Date(), -12))
-        )
-        .map((track) => ({
-            title: track.track.name,
-            artists: track.track.artists.map((artist) => artist.name).join(','),
-            album: track.track.album.name,
-        }))
-
-    const systemPrompt = `
-You are an expert music curator and playlist generator. 
-Your task is to analyze the provided playlist description 
-and generate a JSON array representing the best song that fits the theme and mood.
-Add variances to the song selection and don't pick a song that is preset in the history.
-
-Return 10 songs, all different.
-
-### PLAYLIST DETAILS
-
-DESCRIPTION: ${playlist.description}
-HISTORY: ${JSON.stringify(history)}
-`
-
-    const chatCompletion = await groq.chat.completions.create({
-        messages: [
-            {
-                role: 'user',
-                content: systemPrompt,
-            },
-        ],
-        model: process.env.EXPO_PUBLIC_GROQ_MODEL!,
-        temperature: 0.8,
-        response_format: {
-            type: 'json_schema',
-            json_schema: {
-                name: 'SelectedSongs',
-                description: 'An array of selected songs',
-                schema: z.toJSONSchema(SelectedMusicSchema),
-            },
-        },
-    })
-
-    const jsonString = chatCompletion.choices[0]?.message?.content
-    const selectedMusic = SelectedMusicSchema.parse(
-        JSON.parse(jsonString ?? '[]')
-    )
-
-    const matchedTracks: Track[] = []
-    const expectedTrackCount = 2
-
-    for (const song of selectedMusic.sort(() => Math.random() - 0.5)) {
-        const searchResult = await spotifyApi.search(
-            `track:"${song.title}" artist:"${song.artist}"`,
-            ['track'],
-            undefined,
-            1
-        )
-        const matchedTrack = searchResult.tracks?.items.at(0)
-        if (matchedTrack) {
-            matchedTracks.push(matchedTrack)
-        }
-
-        if (matchedTracks.length >= expectedTrackCount) {
-            break
-        }
-    }
-
-    if (matchedTracks.length === 0) {
-        console.warn('No tracks found for playlist', playlist.name)
-        return
-    }
-
-    if (hardSkip && autoPlay && device.id) {
-        console.log('Starting or resuming playback on device: ', {
-            deviceId: device.id,
-            tracks: matchedTracks.map((track) => track.name),
-        })
-
-        await spotifyApi.player.transferPlayback([device.id])
-        await spotifyApi.player.startResumePlayback(
-            device.id,
-            undefined,
-            matchedTracks.map((track) => track.uri)
-        )
-        return
-    }
-
-    const trackToAdd = matchedTracks[0]
-
-    console.log('Adding tracks to Spotify queue', {
-        track: trackToAdd.name,
-    })
-
-    // not using the playback device as we want to support device switching from the user
-    await spotifyApi.player.addItemToPlaybackQueue(trackToAdd.uri)
 }
