@@ -15,6 +15,7 @@ import {
 } from 'react'
 import {
     AccessToken,
+    Device,
     ICachable,
     ICachingStrategy,
     IResponseDeserializer,
@@ -23,6 +24,7 @@ import {
 } from '@spotify/web-api-ts-sdk'
 import { useStorageState } from '@/lib/useStorageState'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useQuery } from '@tanstack/react-query'
 
 const spotifyDiscovery: DiscoveryDocument = {
     authorizationEndpoint: 'https://accounts.spotify.com/authorize',
@@ -94,6 +96,7 @@ type SpotifyContextType = {
     connect: () => Promise<void>
     disconnect: () => Promise<void>
     playbackSettings: PlaybackSettings
+    defaultPlaybackDevice: Device | null
     setPlaybackSettings: (settings: PlaybackSettings) => Promise<void>
 }
 const SpotifyContext = createContext<SpotifyContextType | null>(null)
@@ -198,6 +201,21 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
         }
     }, [request, response, persistAccessToken])
 
+    const { data: devices } = useQuery({
+        queryKey: ['devices', spotifyApi ? 1 : 0],
+        queryFn: async () =>
+            spotifyApi ? await spotifyApi?.player.getAvailableDevices() : null,
+    })
+    const defaultPlaybackDevice = useMemo(
+        () =>
+            devices?.devices.find(
+                (device) => device.id === playbackSettings.playbackDeviceId
+            ) ??
+            devices?.devices[0] ??
+            null,
+        [devices, playbackSettings.playbackDeviceId]
+    )
+
     return (
         <SpotifyContext.Provider
             value={{
@@ -207,6 +225,7 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
                 connect,
                 disconnect,
                 currentUser,
+                defaultPlaybackDevice,
             }}
         >
             {children}

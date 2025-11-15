@@ -1,7 +1,12 @@
 import { Button, Form, Host, Section, Text } from '@expo/ui/swift-ui'
 import { type Playlist, usePlaylists } from '@/providers/playlists'
-import { PlaybackSettings, useSpotify } from '@/providers/spotify'
-import { PlaybackState, SpotifyApi, Track } from '@spotify/web-api-ts-sdk'
+import { useSpotify } from '@/providers/spotify'
+import {
+    Device,
+    PlaybackState,
+    SpotifyApi,
+    Track,
+} from '@spotify/web-api-ts-sdk'
 import Groq from 'groq-sdk'
 import { addHours, isAfter, milliseconds } from 'date-fns'
 import { z } from 'zod'
@@ -18,8 +23,8 @@ const groq = new Groq({
 const PLAYBACK_STATE_QUERY_KEY = 'playback-state'
 
 export default function HomePage() {
-    const { playlists } = usePlaylists()
-    const { spotifyApi } = useSpotify()
+    const { playlists, activePlaylist } = usePlaylists()
+    const { spotifyApi, defaultPlaybackDevice } = useSpotify()
     const router = useRouter()
 
     const { data: playbackState } = useQuery({
@@ -27,31 +32,31 @@ export default function HomePage() {
         refetchInterval: milliseconds({ seconds: 30 }),
         queryFn: async () =>
             spotifyApi ? await spotifyApi?.player.getPlaybackState() : null,
+        refetchIntervalInBackground: true,
     })
-
     return (
         <Host style={{ flex: 1 }}>
             <Form>
-                {!spotifyApi && (
+                {!defaultPlaybackDevice && (
                     <Section>
                         <Host>
                             <Button
                                 variant={'card'}
                                 onPress={() => router.push('/settings')}
                             >
-                                Setup Play4Me
+                                Setup Required
                             </Button>
                         </Host>
                     </Section>
                 )}
-                {playbackState?.is_playing && (
+                {activePlaylist && playbackState?.is_playing && (
                     <Section>
                         <Host>
                             <PlayingIndicator />
                             <Host>
                                 <Text
                                     design={'rounded'}
-                                >{`Playing on ${playbackState.device.name}`}</Text>
+                                >{`Playing ${activePlaylist.name} on ${playbackState.device.name}`}</Text>
                             </Host>
                         </Host>
                     </Section>
@@ -83,7 +88,7 @@ function PlaylistSection({
     playlist: Playlist
     state: PlaybackState | null
 }) {
-    const { spotifyApi, playbackSettings } = useSpotify()
+    const { spotifyApi, defaultPlaybackDevice, playbackSettings } = useSpotify()
     const { activePlaylist, setActivePlaylist } = usePlaylists()
     const [currentlyPlaying, setCurrentlyPlaying] = useState<string>()
     const queryClient = useQueryClient()
@@ -92,16 +97,17 @@ function PlaylistSection({
 
     const queueNext = useCallback(
         async (hardSkip: boolean) => {
-            if (!spotifyApi) {
+            if (!spotifyApi || !defaultPlaybackDevice) {
                 return
             }
             await queueFromPlaylist(playlist, {
                 hardSkip,
                 spotifyApi,
-                playbackSettings,
+                device: defaultPlaybackDevice,
+                autoPlay: playbackSettings.autoplay ?? false,
             })
         },
-        [spotifyApi, playbackSettings, playlist]
+        [spotifyApi, defaultPlaybackDevice, playlist, playbackSettings]
     )
 
     const { mutate: start, isPending: isStarting } = useMutation({
@@ -156,11 +162,13 @@ function PlaylistSection({
                     </Button>
                 ) : (
                     <Button
-                        disabled={!spotifyApi || isStarting}
+                        disabled={
+                            !spotifyApi || isStarting || !defaultPlaybackDevice
+                        }
                         variant={'card'}
                         onPress={start}
                     >
-                        Play on Spotify
+                        Play on {defaultPlaybackDevice?.name ?? 'Spotify'}
                     </Button>
                 )}
             </Host>
@@ -171,12 +179,14 @@ function PlaylistSection({
 async function queueFromPlaylist(
     playlist: Playlist,
     {
-        playbackSettings,
+        device,
         spotifyApi,
         hardSkip,
+        autoPlay,
     }: {
         hardSkip: boolean
-        playbackSettings: PlaybackSettings
+        device: Device
+        autoPlay: boolean
         spotifyApi: SpotifyApi
     }
 ) {
@@ -256,21 +266,15 @@ HISTORY: ${JSON.stringify(history)}
         return
     }
 
-    if (
-        hardSkip &&
-        playbackSettings.autoplay &&
-        playbackSettings.playbackDeviceId
-    ) {
+    if (hardSkip && autoPlay && device.id) {
         console.log('Starting or resuming playback on device: ', {
-            deviceId: playbackSettings.playbackDeviceId,
+            deviceId: device.id,
             tracks: matchedTracks.map((track) => track.name),
         })
 
-        await spotifyApi.player.transferPlayback([
-            playbackSettings.playbackDeviceId,
-        ])
+        await spotifyApi.player.transferPlayback([device.id])
         await spotifyApi.player.startResumePlayback(
-            playbackSettings.playbackDeviceId,
+            device.id,
             undefined,
             matchedTracks.map((track) => track.uri)
         )

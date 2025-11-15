@@ -25,6 +25,7 @@ export default function RootLayout() {
 
 function Tabs() {
     const { playlists } = usePlaylists()
+
     return (
         <NativeTabs>
             <NativeTabs.Trigger name="home" hidden={playlists.length === 0}>
