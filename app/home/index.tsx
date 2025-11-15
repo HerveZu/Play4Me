@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { PlayingIndicator } from '@/lib/PlayingIndicator'
+import { useRouter } from 'expo-router'
 
 const groq = new Groq({
     apiKey: process.env.EXPO_PUBLIC_GROQ_API_KEY,
@@ -19,6 +20,7 @@ const PLAYBACK_STATE_QUERY_KEY = 'playback-state'
 export default function HomePage() {
     const { playlists } = usePlaylists()
     const { spotifyApi } = useSpotify()
+    const router = useRouter()
 
     const { data: playbackState } = useQuery({
         queryKey: [PLAYBACK_STATE_QUERY_KEY, spotifyApi ? 1 : 0],
@@ -30,8 +32,20 @@ export default function HomePage() {
     return (
         <Host style={{ flex: 1 }}>
             <Form>
-                <Section>
-                    {playbackState?.is_playing && (
+                {!spotifyApi && (
+                    <Section>
+                        <Host>
+                            <Button
+                                variant={'card'}
+                                onPress={() => router.push('/settings')}
+                            >
+                                Setup Play4Me
+                            </Button>
+                        </Host>
+                    </Section>
+                )}
+                {playbackState?.is_playing && (
+                    <Section>
                         <Host>
                             <PlayingIndicator />
                             <Host>
@@ -40,8 +54,8 @@ export default function HomePage() {
                                 >{`Playing on ${playbackState.device.name}`}</Text>
                             </Host>
                         </Host>
-                    )}
-                </Section>
+                    </Section>
+                )}
 
                 {playlists.map((playlist, i) => (
                     <PlaylistSection
@@ -242,8 +256,6 @@ HISTORY: ${JSON.stringify(history)}
         return
     }
 
-    console.log('Adding tracks to Spotify queue')
-
     if (
         hardSkip &&
         playbackSettings.autoplay &&
@@ -251,7 +263,9 @@ HISTORY: ${JSON.stringify(history)}
     ) {
         console.log('Starting or resuming playback on device: ', {
             deviceId: playbackSettings.playbackDeviceId,
+            tracks: matchedTracks.map((track) => track.name),
         })
+
         await spotifyApi.player.transferPlayback([
             playbackSettings.playbackDeviceId,
         ])
@@ -260,10 +274,17 @@ HISTORY: ${JSON.stringify(history)}
             undefined,
             matchedTracks.map((track) => track.uri)
         )
+        return
     }
 
+    const trackToAdd = matchedTracks[0]
+
+    console.log('Adding tracks to Spotify queue', {
+        track: trackToAdd.name,
+    })
+
     await spotifyApi.player.addItemToPlaybackQueue(
-        matchedTracks[0].uri,
+        trackToAdd.uri,
         playbackSettings.playbackDeviceId
     )
 }
