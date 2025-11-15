@@ -5,7 +5,7 @@ import { PlaybackState, SpotifyApi, Track } from '@spotify/web-api-ts-sdk'
 import Groq from 'groq-sdk'
 import { addHours, isAfter, milliseconds } from 'date-fns'
 import { z } from 'zod'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 
 const groq = new Groq({
@@ -13,12 +13,14 @@ const groq = new Groq({
     dangerouslyAllowBrowser: true,
 })
 
+const PLAYBACK_STATE_QUERY_KEY = 'playback-state'
+
 export default function HomePage() {
     const { playlists } = usePlaylists()
     const { spotifyApi } = useSpotify()
 
     const { data: playbackState } = useQuery({
-        queryKey: ['playback-state', spotifyApi ? 1 : 0],
+        queryKey: [PLAYBACK_STATE_QUERY_KEY, spotifyApi ? 1 : 0],
         refetchInterval: milliseconds({ seconds: 30 }),
         queryFn: async () =>
             spotifyApi ? await spotifyApi?.player.getPlaybackState() : null,
@@ -62,6 +64,7 @@ function PlaylistSection({
     const { spotifyApi, playbackSettings } = useSpotify()
     const { activePlaylist, setActivePlaylist } = usePlaylists()
     const [currentlyPlaying, setCurrentlyPlaying] = useState<string>()
+    const queryClient = useQueryClient()
 
     const active = activePlaylist && activePlaylist.id === playlist.id
 
@@ -81,12 +84,25 @@ function PlaylistSection({
 
     const { mutate: start, isPending: isStarting } = useMutation({
         mutationFn: () => queueNext(true),
-        onSuccess: () => setActivePlaylist(playlist.id),
+        onSuccess: async () => {
+            setActivePlaylist(playlist.id)
+            await queryClient.invalidateQueries({
+                queryKey: [PLAYBACK_STATE_QUERY_KEY],
+            })
+        },
     })
 
-    const stop = useCallback(() => {
-        setActivePlaylist(null)
-    }, [setActivePlaylist])
+    const { mutate: stop, isPending: isStopping } = useMutation({
+        mutationFn: async () => {
+            state?.device.id &&
+                (await spotifyApi?.player.pausePlayback(state.device.id))
+        },
+        onSuccess: () =>
+            queryClient.invalidateQueries({
+                queryKey: [PLAYBACK_STATE_QUERY_KEY],
+            }),
+        onSettled: () => setActivePlaylist(null),
+    })
 
     useEffect(() => {
         if (!active) {
@@ -109,7 +125,7 @@ function PlaylistSection({
             <Host>
                 {active ? (
                     <Button
-                        disabled={isStarting}
+                        disabled={isStopping}
                         variant={'card'}
                         role={'destructive'}
                         onPress={() => stop()}
