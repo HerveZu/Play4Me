@@ -4,9 +4,9 @@ on:
   push:
     branches: ['main']
 
-  jobs:
-    update:
-      name: Push OTA Updates
-      type: update
-      params:
-        branch: ${{ github.ref_name }}
+jobs:
+  update:
+    name: Push OTA Updates
+    type: update
+    params:
+      branch: ${{ github.ref_name }}
