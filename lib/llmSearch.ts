@@ -26,8 +26,10 @@ export async function fetchSongsForPlaylist(
         spotifyApi: SpotifyApi
     }
 ): Promise<Track[]> {
-    const recentlyPlayedTracks =
-        await spotifyApi.player.getRecentlyPlayedTracks()
+    const [currentlyPlayingTrack, recentlyPlayedTracks] = await Promise.all([
+        spotifyApi.player.getCurrentlyPlayingTrack(),
+        spotifyApi.player.getRecentlyPlayedTracks(50),
+    ])
 
     const history = recentlyPlayedTracks.items
         .filter((track) =>
@@ -38,6 +40,14 @@ export async function fetchSongsForPlaylist(
             artists: track.track.artists.map((artist) => artist.name).join(','),
             album: track.track.album.name,
         }))
+
+    if (currentlyPlayingTrack?.item) {
+        history.push({
+            title: currentlyPlayingTrack.item.name,
+            artists: '',
+            album: '',
+        })
+    }
 
     const systemPrompt = `
 You are an expert music curator and playlist generator. 
