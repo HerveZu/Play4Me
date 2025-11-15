@@ -47,7 +47,7 @@ export default function SettingsPage() {
                         )}
                     </Host>
                 </Section>
-                <Section title="Playback">
+                <Section title="Default Device">
                     {devices?.devices.map((device) => (
                         <Button
                             key={device.id}
@@ -57,10 +57,17 @@ export default function SettingsPage() {
                                     playbackDeviceId: device.id ?? undefined,
                                 })
                             }
+                            systemImage={
+                                playbackSettings.playbackDeviceId === device.id
+                                    ? 'checkmark'
+                                    : undefined
+                            }
                         >
                             {device.name}
                         </Button>
                     ))}
+                </Section>
+                <Section title="Queue">
                     <Switch
                         value={!!playbackSettings.autoplay}
                         onValueChange={(autoPlay) =>

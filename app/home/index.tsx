@@ -283,8 +283,6 @@ HISTORY: ${JSON.stringify(history)}
         track: trackToAdd.name,
     })
 
-    await spotifyApi.player.addItemToPlaybackQueue(
-        trackToAdd.uri,
-        playbackSettings.playbackDeviceId
-    )
+    // not using the playback device as we want to support device switching from the user
+    await spotifyApi.player.addItemToPlaybackQueue(trackToAdd.uri)
 }
