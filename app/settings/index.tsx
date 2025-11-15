@@ -26,13 +26,9 @@ export default function SettingsPage() {
         <Host style={{ flex: 1 }}>
             <Form>
                 <Section title="Spotify">
-                    <Host>
-                        {currentUser ? (
-                            <Text>{currentUser.display_name}</Text>
-                        ) : (
-                            <Text>No Spotify account linked</Text>
-                        )}
-                    </Host>
+                    {currentUser && (
+                        <Text>{`Connected as ${currentUser.display_name}`}</Text>
+                    )}
                     <Host>
                         {currentUser ? (
                             <Button
@@ -82,7 +78,7 @@ export default function SettingsPage() {
                                 autoplay: autoPlay,
                             })
                         }
-                        label={'Auto play'}
+                        label={'Auto Play'}
                     />
                 </Section>
 
