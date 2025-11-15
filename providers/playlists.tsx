@@ -3,10 +3,10 @@ import {
     PropsWithChildren,
     useCallback,
     useContext,
-    useEffect,
+    useMemo,
     useState,
 } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useStorageState } from '@/lib/useStorageState'
 
 export function usePlaylists(): PlaylistsContextType {
     const context = useContext(PlaylistsContext)
@@ -25,36 +25,29 @@ export type Playlist = {
     createdAt: number
 }
 
-const PLAYLISTS_KEY = 'play4me_playlists'
-
 type PlaylistsContextType = {
     loading: boolean
     playlists: Playlist[]
+    activePlaylist: Playlist | null
+    setActivePlaylist: (id: string | null) => void
     addPlaylist: (playlist: {
         name: string
         description: string
     }) => Promise<Playlist>
     removePlaylist: (data: { id: string }) => Promise<void>
-    clearAll: () => Promise<void>
 }
 const PlaylistsContext = createContext<PlaylistsContextType | null>(null)
 
 export function PlaylistsProvider({ children }: PropsWithChildren) {
-    const [playlists, setPlaylists] = useState<Playlist[]>([])
-    const [loading, setLoading] = useState(true)
+    const {
+        data: playlists,
+        persist,
+        loading,
+    } = useStorageState<Playlist[]>('play4me_playlists', [])
 
-    useEffect(() => {
-        AsyncStorage.getItem(PLAYLISTS_KEY)
-            .then((json) => {
-                if (json) setPlaylists(JSON.parse(json))
-            })
-            .finally(() => setLoading(false))
-    }, [])
-
-    const persist = useCallback(async (next: Playlist[]) => {
-        setPlaylists(next)
-        await AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(next))
-    }, [])
+    const [activePlaylistId, setActivePlaylistId] = useState<string | null>(
+        null
+    )
 
     const addPlaylist = useCallback(
         async ({
@@ -85,18 +78,20 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
         [persist, playlists]
     )
 
-    const clearAll = useCallback(async () => {
-        await persist([])
-    }, [persist])
+    const activePlaylist = useMemo(
+        () => playlists.find((p) => p.id === activePlaylistId),
+        [activePlaylistId, playlists]
+    )
 
     return (
         <PlaylistsContext.Provider
             value={{
+                activePlaylist: activePlaylist ?? null,
+                setActivePlaylist: setActivePlaylistId,
                 loading,
                 playlists,
                 addPlaylist,
                 removePlaylist,
-                clearAll,
             }}
         >
             {children}

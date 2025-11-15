@@ -1,16 +1,21 @@
-import { Button, Form, Host, Section, Text } from '@expo/ui/swift-ui'
+import { Button, Form, Host, Section, Switch, Text } from '@expo/ui/swift-ui'
 import { useSpotify } from '@/providers/spotify'
-import { usePlaylists } from '@/providers/playlists'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { milliseconds } from 'date-fns'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Updates from 'expo-updates'
 
 export default function SettingsPage() {
     const { currentUser, disconnect, connect } = useSpotify()
-    const { playlists, clearAll } = usePlaylists()
 
-    const { isPending: isClearingPlaylist, mutate: clearAllPlaylists } =
-        useMutation({
-            mutationFn: clearAll,
-        })
+    const { playbackSettings, setPlaybackSettings, spotifyApi } = useSpotify()
+
+    const { data: devices } = useQuery({
+        queryKey: ['available-devices', spotifyApi ? 1 : 0],
+        refetchInterval: milliseconds({ seconds: 30 }),
+        queryFn: async () =>
+            spotifyApi ? await spotifyApi.player.getAvailableDevices() : null,
+    })
 
     const { isPending: isDisconnectingSpotify, mutate: disconnectSpotify } =
         useMutation({
@@ -42,14 +47,40 @@ export default function SettingsPage() {
                         )}
                     </Host>
                 </Section>
+                <Section title="Playback">
+                    {devices?.devices.map((device) => (
+                        <Button
+                            key={device.id}
+                            onPress={() =>
+                                setPlaybackSettings({
+                                    ...playbackSettings,
+                                    playbackDeviceId: device.id ?? undefined,
+                                })
+                            }
+                        >
+                            {device.name}
+                        </Button>
+                    ))}
+                    <Switch
+                        value={!!playbackSettings.autoplay}
+                        onValueChange={(autoPlay) =>
+                            setPlaybackSettings({
+                                ...playbackSettings,
+                                autoplay: autoPlay,
+                            })
+                        }
+                        label={'Auto play'}
+                    />
+                </Section>
 
                 <Host>
                     <Button
                         role={'destructive'}
-                        onPress={clearAllPlaylists}
-                        disabled={!playlists.length || isClearingPlaylist}
+                        onPress={() =>
+                            AsyncStorage.clear(() => Updates.reloadAsync())
+                        }
                     >
-                        Clear Playlists
+                        Clear All Data
                     </Button>
                 </Host>
             </Form>

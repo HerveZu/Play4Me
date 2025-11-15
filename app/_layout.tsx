@@ -4,9 +4,7 @@ import { SpotifyProvider } from '@/providers/spotify'
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs'
 import { PlaylistsProvider, usePlaylists } from '@/providers/playlists'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { setupURLPolyfill } from 'react-native-url-polyfill'
-
-setupURLPolyfill()
+import 'react-native-url-polyfill/auto'
 
 const queryClient = new QueryClient()
 

@@ -13,22 +13,29 @@ import {
     useMemo,
     useState,
 } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
     AccessToken,
-    InMemoryCachingStrategy,
+    ICachable,
+    ICachingStrategy,
+    IResponseDeserializer,
     SpotifyApi,
     UserProfile,
 } from '@spotify/web-api-ts-sdk'
+import { useStorageState } from '@/lib/useStorageState'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const spotifyDiscovery: DiscoveryDocument = {
     authorizationEndpoint: 'https://accounts.spotify.com/authorize',
     tokenEndpoint: 'https://accounts.spotify.com/api/token',
 }
 
-const SPOTIFY_CLIENT_ID = '4f4a8c46176f47aa9c64257361e5d955'
-const SPOTIFY_ACCESS_TOKEN_KEY = 'spotify_access_token'
+const SPOTIFY_CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID!
 const SPOTIFY_REDIRECT_URI = makeRedirectUri({ path: '--/callback/spotify' })
+const SPOTIFY_SCOPES = [
+    'user-read-playback-state',
+    'user-modify-playback-state',
+    'user-read-recently-played',
+]
 
 const createUrlEncodedString = (data: Record<string, string | number>) => {
     return Object.keys(data)
@@ -76,31 +83,86 @@ export function useSpotify(): SpotifyContextType {
     return context
 }
 
+export type PlaybackSettings = Partial<{
+    playbackDeviceId: string
+    autoplay: boolean
+}>
+
 type SpotifyContextType = {
     spotifyApi: SpotifyApi | null
     currentUser: UserProfile | null
     connect: () => Promise<void>
     disconnect: () => Promise<void>
+    playbackSettings: PlaybackSettings
+    setPlaybackSettings: (settings: PlaybackSettings) => Promise<void>
 }
 const SpotifyContext = createContext<SpotifyContextType | null>(null)
 
+class AsyncStorageCachingStrategy implements ICachingStrategy {
+    async get<T>(cacheKey: string): Promise<(T & ICachable) | null> {
+        const json = await AsyncStorage.getItem(cacheKey)
+        return json ? (JSON.parse(json) as T & ICachable) : null
+    }
+
+    async getOrCreate<T>(
+        cacheKey: string,
+        createFunction: () => Promise<T & ICachable & object>,
+        updateFunction?: (item: T) => Promise<T & ICachable & object>
+    ): Promise<T & ICachable> {
+        const item = await this.get<T>(cacheKey)
+        if (item) {
+            await updateFunction?.(item)
+            return item
+        }
+        const newItem = await createFunction()
+        this.setCacheItem(cacheKey, newItem)
+        return newItem
+    }
+
+    remove(cacheKey: string): void {
+        AsyncStorage.removeItem(cacheKey)
+    }
+
+    setCacheItem<T>(cacheKey: string, item: T & ICachable): void {
+        AsyncStorage.setItem(cacheKey, JSON.stringify(item))
+    }
+}
+
+// https://github.com/spotify/spotify-web-api-ts-sdk/issues/127
+class UnhealthyResponseDeserializer implements IResponseDeserializer {
+    async deserialize<T>(response: Response): Promise<T> {
+        const text = await response.text()
+        if (text.length > 0) {
+            try {
+                return JSON.parse(text) as T
+            } catch {}
+        }
+
+        return null as T
+    }
+}
+
 export function SpotifyProvider({ children }: PropsWithChildren) {
-    const [accessToken, setAccessToken] = useState<AccessToken | null>(null)
+    const { data: accessToken, persist: persistAccessToken } =
+        useStorageState<AccessToken | null>('spotify_access_token', null)
+    const { data: playbackSettings, persist: setPlaybackSettings } =
+        useStorageState<PlaybackSettings>('spotify_playback_settings', {
+            autoplay: true,
+        })
     const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
 
     const [request, response, promptAsync] = useAuthRequest(
         {
             clientId: SPOTIFY_CLIENT_ID,
-            scopes: ['user-read-playback-state', 'user-modify-playback-state'],
+            scopes: SPOTIFY_SCOPES,
             redirectUri: SPOTIFY_REDIRECT_URI,
         },
         spotifyDiscovery
     )
 
     const disconnect = useCallback(async () => {
-        setAccessToken(null)
-        await AsyncStorage.removeItem(SPOTIFY_ACCESS_TOKEN_KEY)
-    }, [setAccessToken])
+        await persistAccessToken(null)
+    }, [persistAccessToken])
 
     const connect = useCallback(async () => {
         await promptAsync()
@@ -110,7 +172,8 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
         try {
             return accessToken
                 ? SpotifyApi.withAccessToken(SPOTIFY_CLIENT_ID, accessToken, {
-                      cachingStrategy: new InMemoryCachingStrategy(),
+                      cachingStrategy: new AsyncStorageCachingStrategy(),
+                      deserializer: new UnhealthyResponseDeserializer(),
                   })
                 : null
         } catch {
@@ -120,12 +183,6 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
     }, [accessToken, disconnect])
 
     useEffect(() => {
-        AsyncStorage.getItem(SPOTIFY_ACCESS_TOKEN_KEY).then((accessToken) =>
-            setAccessToken(JSON.parse(accessToken || 'null'))
-        )
-    }, [setAccessToken])
-
-    useEffect(() => {
         if (!spotifyApi) {
             setCurrentUser(null)
             return
@@ -133,28 +190,19 @@ export function SpotifyProvider({ children }: PropsWithChildren) {
         spotifyApi.currentUser.profile().then(setCurrentUser).catch(disconnect)
     }, [spotifyApi, disconnect])
 
-    const setAccessTokenAndStore = useCallback(
-        (accessToken: AccessToken) => {
-            setAccessToken(accessToken)
-            AsyncStorage.setItem(
-                SPOTIFY_ACCESS_TOKEN_KEY,
-                JSON.stringify(accessToken)
-            ).then(() => console.log('Spotify access token saved'))
-        },
-        [setAccessToken]
-    )
-
     useEffect(() => {
         if (request && response?.type === 'success') {
             exchangeCodeForToken(request, response.params.code).then(
-                setAccessTokenAndStore
+                persistAccessToken
             )
         }
-    }, [request, response, setAccessTokenAndStore])
+    }, [request, response, persistAccessToken])
 
     return (
         <SpotifyContext.Provider
             value={{
+                playbackSettings,
+                setPlaybackSettings,
                 spotifyApi,
                 connect,
                 disconnect,
