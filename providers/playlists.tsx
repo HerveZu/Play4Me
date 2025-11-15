@@ -4,7 +4,6 @@ import {
     useCallback,
     useContext,
     useMemo,
-    useState,
 } from 'react'
 import { useStorageState } from '@/lib/useStorageState'
 
@@ -45,9 +44,8 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
         loading,
     } = useStorageState<Playlist[]>('play4me_playlists', [])
 
-    const [activePlaylistId, setActivePlaylistId] = useState<string | null>(
-        null
-    )
+    const { data: activePlaylistId, persist: setActivePlaylistId } =
+        useStorageState<string | null>('play4me_active_playlist', null)
 
     const addPlaylist = useCallback(
         async ({
