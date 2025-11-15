@@ -47,26 +47,32 @@ export default function SettingsPage() {
                         )}
                     </Host>
                 </Section>
-                <Section title="Default Device">
-                    {devices?.devices.map((device) => (
-                        <Button
-                            key={device.id}
-                            onPress={() =>
-                                setPlaybackSettings({
-                                    ...playbackSettings,
-                                    playbackDeviceId: device.id ?? undefined,
-                                })
-                            }
-                            systemImage={
-                                playbackSettings.playbackDeviceId === device.id
-                                    ? 'checkmark'
-                                    : undefined
-                            }
-                        >
-                            {device.name}
-                        </Button>
-                    ))}
-                </Section>
+
+                {devices?.devices.length && (
+                    <Section title="Default Device">
+                        {devices?.devices.map((device) => (
+                            <Button
+                                key={device.id}
+                                onPress={() =>
+                                    setPlaybackSettings({
+                                        ...playbackSettings,
+                                        playbackDeviceId:
+                                            device.id ?? undefined,
+                                    })
+                                }
+                                systemImage={
+                                    playbackSettings.playbackDeviceId ===
+                                    device.id
+                                        ? 'checkmark'
+                                        : undefined
+                                }
+                            >
+                                {device.name}
+                            </Button>
+                        ))}
+                    </Section>
+                )}
+
                 <Section title="Queue">
                     <Switch
                         value={!!playbackSettings.autoplay}
