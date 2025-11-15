@@ -5,6 +5,15 @@ type Wrapper<Data> = {
     data: Data
 }
 
+export async function setStorageState<Data>(key: string, data: Data) {
+    await AsyncStorage.setItem(key, JSON.stringify({ data } as Wrapper<Data>))
+}
+
+export async function getStorageState<Data>(key: string): Promise<Data | null> {
+    const json = await AsyncStorage.getItem(key)
+    return json ? (JSON.parse(json) as Wrapper<Data>).data : null
+}
+
 export function useStorageState<Data>(
     key: string,
     initialValue: Data
@@ -13,20 +22,15 @@ export function useStorageState<Data>(
     const [data, setData] = useState(initialValue)
 
     useEffect(() => {
-        AsyncStorage.getItem(key)
-            .then((json) => {
-                if (json) setData((JSON.parse(json) as Wrapper<Data>).data)
-            })
+        getStorageState<Data>(key)
+            .then((data) => data && setData(data))
             .finally(() => setLoading(false))
     }, [key, setData, setLoading])
 
     const persist = useCallback(
         async (data: Data) => {
             setData(data)
-            await AsyncStorage.setItem(
-                key,
-                JSON.stringify({ data } as Wrapper<Data>)
-            )
+            setStorageState(key, data)
         },
         [key]
     )
