@@ -1,11 +1,10 @@
-import {
-  createContext,
-  PropsWithChildren,
-  useCallback,
-  useContext,
-  useMemo,
-} from 'react'
-import { useStorageState } from '@/lib/useStorageState'
+import { createContext, PropsWithChildren, useContext } from 'react'
+import { CreatePlaylistInput } from '@/app/(authenticated)/api/playlist/create+api'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/providers/auth'
+import { StopPlaylistInput } from '@/app/(authenticated)/api/playlist/stop+api'
+import { StartPlaylistInput } from '@/app/(authenticated)/api/playlist/start+api'
+import { Playlist } from '@/app/(authenticated)/api/playlist/index+api'
 
 export function usePlaylists(): PlaylistsContextType {
   const context = useContext(PlaylistsContext)
@@ -17,73 +16,58 @@ export function usePlaylists(): PlaylistsContextType {
   return context
 }
 
-export type Playlist = {
-  id: string
-  name: string
-  description: string
-  createdAt: number
-}
-
 type PlaylistsContextType = {
-  loading: boolean
-  playlists: Playlist[]
-  activePlaylist: Playlist | null
-  setActivePlaylist: (id: string | null) => void
-  addPlaylist: (playlist: {
-    name: string
-    description: string
-  }) => Promise<Playlist>
-  removePlaylist: (data: { id: string }) => Promise<void>
+  playlists: Playlist[] | undefined
+  start: (input: StartPlaylistInput) => Promise<void>
+  stop: (input: StopPlaylistInput) => Promise<void>
+  createPlaylist: (input: CreatePlaylistInput) => Promise<Playlist>
 }
 const PlaylistsContext = createContext<PlaylistsContextType | null>(null)
 
 export function PlaylistsProvider({ children }: PropsWithChildren) {
-  const {
-    data: playlists,
-    persist,
-    loading,
-  } = useStorageState<Playlist[]>('play4me_playlists', [])
+  const { fetch } = useAuth()
 
-  const { data: activePlaylistId, persist: setActivePlaylistId } =
-    useStorageState<string | null>('play4me_active_playlist', null)
+  const { data: playlists, refetch } = useQuery({
+    queryKey: ['playlists'],
+    queryFn: async () => await fetch<Playlist[]>('/api/playlist'),
+  })
 
-  const addPlaylist = useCallback(
-    async ({ name, description }: { name: string; description: string }) => {
-      const pl: Playlist = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        name: name.trim(),
-        description: description.trim(),
-        createdAt: Date.now(),
-      }
-      const next = [pl, ...playlists]
-      await persist(next)
-      return pl
+  const { mutateAsync: createPlaylist } = useMutation({
+    mutationFn: async (playlist: CreatePlaylistInput) =>
+      await fetch<Playlist>('/api/playlist/create', {
+        method: 'POST',
+        body: JSON.stringify(playlist),
+      }),
+    onSuccess: () => refetch,
+  })
+
+  const { mutateAsync: start } = useMutation({
+    mutationFn: async (input: StartPlaylistInput) => {
+      await fetch<Playlist>('/api/playlist/start', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      })
     },
-    [persist, playlists]
-  )
+    onSuccess: () => refetch(),
+  })
 
-  const removePlaylist = useCallback(
-    async ({ id }: { id: string }) => {
-      const next = playlists.filter((p) => p.id !== id)
-      await persist(next)
+  const { mutateAsync: stop } = useMutation({
+    mutationFn: async (input: StopPlaylistInput) => {
+      await fetch<Playlist>('/api/playlist/stop', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      })
     },
-    [persist, playlists]
-  )
-
-  const activePlaylist = useMemo(
-    () => playlists.find((p) => p.id === activePlaylistId),
-    [activePlaylistId, playlists]
-  )
+    onSuccess: () => refetch(),
+  })
 
   return (
     <PlaylistsContext.Provider
       value={{
-        activePlaylist: activePlaylist ?? null,
-        setActivePlaylist: setActivePlaylistId,
-        loading,
+        createPlaylist,
+        start,
+        stop,
         playlists,
-        addPlaylist,
-        removePlaylist,
       }}
     >
       {children}

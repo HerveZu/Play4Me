@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import { Button, Form, Host, Section, TextField } from '@expo/ui/swift-ui'
 import { usePlaylists } from '@/providers/playlists'
-import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import { frame } from '@expo/ui/swift-ui/modifiers'
+import { useMutation } from '@tanstack/react-query'
 
 export default function NewPlaylistPage() {
   const [playlistName, setPlaylistName] = useState('')
   const [description, setDescription] = useState('')
   const router = useRouter()
 
-  const { addPlaylist } = usePlaylists()
+  const { createPlaylist } = usePlaylists()
 
-  const { isPending, mutate: addToPlaylist } = useMutation({
+  const { mutate: handleCreatePlaylist, isPending } = useMutation({
     mutationFn: async () => {
-      await addPlaylist({ name: playlistName, description })
+      await createPlaylist({ title: playlistName, description })
       router.push('/home')
     },
   })
@@ -40,7 +40,11 @@ export default function NewPlaylistPage() {
         </Section>
 
         <Host>
-          <Button variant="link" onPress={addToPlaylist} disabled={disabled}>
+          <Button
+            variant="link"
+            onPress={handleCreatePlaylist}
+            disabled={disabled}
+          >
             Add to Playlists
           </Button>
         </Host>
