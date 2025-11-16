@@ -28,10 +28,12 @@ export async function GET(request: Request) {
       .orderBy(playlists.title)
 
     return Response.json(
-      userPlaylists.map((playlist) => ({
-        ...playlist,
-        active: playlist.activeSessionsCount > 0,
-      })) as UserPlaylist[]
+      userPlaylists
+        .sort((a, b) => b.activeSessionsCount - a.activeSessionsCount)
+        .map((playlist) => ({
+          ...playlist,
+          active: playlist.activeSessionsCount > 0,
+        })) as UserPlaylist[]
     )
   })
 }
