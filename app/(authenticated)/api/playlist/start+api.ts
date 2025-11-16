@@ -164,13 +164,34 @@ async function playlistLoop({
     )
 
     try {
-      const updateResult = await playlistLoopUpdate({
-        playSessionId: playSession.id,
+      const userActiveSessions = await db
+        .select()
+        .from(playSessions)
+        .innerJoin(playlistQueues, eq(playSessions.queueId, playlistQueues.id))
+        .where(
+          and(
+            eq(playSessions.id, playSession.id),
+            isNull(playSessions.stoppedAt)
+          )
+        )
+
+      if (!userActiveSessions.length) {
+        console.log('Play session ended, stopping playlist loop', {
+          sessionId: playSession.id,
+        })
+        return { currentlyPlaying: lastCheckedPlaying }
+      }
+
+      const [upToDatePlaySession] = userActiveSessions
+
+      const { currentlyPlaying } = await playlistLoopUpdate({
+        playSession: upToDatePlaySession.play_sessions,
+        playQueue: upToDatePlaySession.playlist_queues,
         playlistId: userPlaylist.id,
         authSession,
         lastCheckedPlaying,
       })
-      lastCheckedPlaying = updateResult.currentlyPlaying
+      lastCheckedPlaying = currentlyPlaying
     } catch (e: unknown) {
       console.error('Error in playlist loop update', {
         error: e,
@@ -182,33 +203,18 @@ async function playlistLoop({
 }
 
 async function playlistLoopUpdate({
-  playSessionId,
+  playQueue,
+  playSession,
   playlistId,
   authSession,
   lastCheckedPlaying,
 }: {
-  playSessionId: string
+  playSession: PlaySession
+  playQueue: PlaylistQueue
   playlistId: string
   authSession: AuthSession
   lastCheckedPlaying: PlaybackTrack
 }): Promise<{ currentlyPlaying: PlaybackTrack }> {
-  const userActiveSessions = await db
-    .select()
-    .from(playSessions)
-    .innerJoin(playlistQueues, eq(playSessions.queueId, playlistQueues.id))
-    .where(
-      and(eq(playSessions.id, playSessionId), isNull(playSessions.stoppedAt))
-    )
-
-  if (!userActiveSessions.length) {
-    console.log('Play session ended, stopping playlist loop', {
-      sessionId: playSessionId,
-    })
-    return { currentlyPlaying: lastCheckedPlaying }
-  }
-
-  const [{ play_sessions: playSession, playlist_queues: queue }] =
-    userActiveSessions
   const spotifyApi = await getServerSpotifyApi(authSession)
 
   const currentlyPlaying = (await spotifyApi.player.getCurrentlyPlayingTrack())
@@ -228,7 +234,7 @@ async function playlistLoopUpdate({
     .from(playlists)
     .where(eq(playlists.id, playlistId))
   const queuePlaylist = await spotifyApi.playlists.getPlaylist(
-    queue.queuePlaylistId
+    playQueue.queuePlaylistId
   )
 
   console.log('Adding more tracks to playlist queue', {
