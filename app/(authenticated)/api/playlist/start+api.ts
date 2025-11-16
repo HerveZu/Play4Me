@@ -147,17 +147,30 @@ async function playlistLoop({
     userPlaylist,
     spotifyApi,
   })
-  await spotifyApi.playlists.addItemsToPlaylist(
-    queuePlaylist.id,
-    tracks.map((track) => track.uri)
-  )
-  console.log('Added tracks to playlist', { sessionId: playSession.id })
+  const firstTrack = tracks[0]
+  console.log('Adding first tracks to playlist', { sessionId: playSession.id })
+
+  // only add the 1st track before starting, to make sure its the one that gets to be played first
+  await spotifyApi.playlists.addItemsToPlaylist(queuePlaylist.id, [
+    firstTrack.uri,
+  ])
   await spotifyApi.player.startResumePlayback(
     playSession.deviceId,
     queuePlaylist.uri
   )
   console.log('Started playback', { sessionId: playSession.id })
-  let lastCheckedPlaying: PlaybackTrack = tracks[0]
+
+  if (tracks.length > 1) {
+    console.log('Adding remaining tracks to playlist', {
+      sessionId: playSession.id,
+    })
+    await spotifyApi.playlists.addItemsToPlaylist(
+      queuePlaylist.id,
+      tracks.slice(1).map((track) => track.uri)
+    )
+  }
+
+  let lastCheckedPlaying: PlaybackTrack | null = null
 
   while (true) {
     await new Promise((resolve) =>
@@ -180,7 +193,7 @@ async function playlistLoop({
         console.log('Play session ended, stopping playlist loop', {
           sessionId: playSession.id,
         })
-        return { currentlyPlaying: lastCheckedPlaying }
+        return
       }
 
       const [upToDatePlaySession] = userActiveSessions
@@ -214,14 +227,14 @@ async function playlistLoopUpdate({
   playQueue: PlaylistQueue
   playlistId: string
   authSession: AuthSession
-  lastCheckedPlaying: PlaybackTrack
+  lastCheckedPlaying: PlaybackTrack | null
 }): Promise<{ currentlyPlaying: PlaybackTrack }> {
   const spotifyApi = await getServerSpotifyApi(authSession)
 
   const currentlyPlaying = (await spotifyApi.player.getCurrentlyPlayingTrack())
     .item
 
-  if (currentlyPlaying.uri === lastCheckedPlaying.uri) {
+  if (lastCheckedPlaying && currentlyPlaying.uri === lastCheckedPlaying.uri) {
     console.log('Currently playing track unchanged, skipping update', {
       sessionId: playSession.id,
     })
