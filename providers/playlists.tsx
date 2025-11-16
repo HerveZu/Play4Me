@@ -43,6 +43,12 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
 
   const { mutateAsync: start } = useMutation({
     mutationFn: async (input: StartPlaylistInput) => {
+      playlists &&
+        (await Promise.all(
+          playlists
+            .filter((playlist) => playlist.id !== input.playlistId)
+            .map((playlist) => stop({ playlistId: playlist.id }))
+        ))
       await fetch<UserPlaylist>('/api/playlist/start', {
         method: 'POST',
         body: JSON.stringify(input),
