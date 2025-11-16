@@ -31,20 +31,21 @@ export type StartPlaylistInput = {
 export async function POST(request: Request) {
   return await withSession(request, async (session) => {
     const input = (await request.json()) as StartPlaylistInput
-    const [activeSession] = await db
-      .select()
-      .from(playSessions)
+
+    const stoppedSessions = await db
+      .update(playSessions)
+      .set({ stoppedAt: new Date() })
       .where(
         and(
           eq(playSessions.ownerId, session.user.id),
-          eq(playSessions.playlistId, input.playlistId),
           isNull(playSessions.stoppedAt)
         )
       )
+      .returning()
 
-    if (activeSession) {
-      return Response.json(activeSession)
-    }
+    console.log('Stopped sessions before stating playlist', {
+      sessionIds: stoppedSessions.map((s) => s.id),
+    })
 
     const spotifyApi = await getServerSpotifyApi(session)
 
