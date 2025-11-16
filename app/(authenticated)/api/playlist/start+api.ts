@@ -1,18 +1,27 @@
 import { type AuthSession, withSession } from '@/lib/auth'
 import { db } from '@/db'
 import {
+  type Playlist,
   type PlaylistQueue,
   playlistQueues,
+  playlists,
   type PlaySession,
   playSessions,
 } from '@/db/schema/public'
 import { and, eq, isNull } from 'drizzle-orm'
 import { deferTask } from 'expo-server'
-import { Playlist, SpotifyApi, Track, TrackItem } from '@spotify/web-api-ts-sdk'
+import {
+  Episode,
+  Playlist as SpotifyPlaylist,
+  SpotifyApi,
+  Track,
+} from '@spotify/web-api-ts-sdk'
 import { z } from 'zod'
 import Groq from 'groq-sdk'
 import { milliseconds } from 'date-fns'
 import { getServerSpotifyApi } from '@/lib/spotify-server'
+
+type PlaybackTrack = Track | Episode
 
 export type StartPlaylistInput = {
   playlistId: string
@@ -83,6 +92,7 @@ export async function POST(request: Request) {
           playSession: newSession,
           authSession: session,
           queue,
+          playlistId: input.playlistId,
         })
       } catch (e: unknown) {
         console.error('Error in playlist loop', e)
@@ -105,36 +115,48 @@ async function playlistLoop({
   authSession,
   playSession,
   queue,
+  playlistId,
 }: {
   authSession: AuthSession
   playSession: PlaySession
   queue: PlaylistQueue
+  playlistId: string
 }) {
   const spotifyApi = await getServerSpotifyApi(authSession)
-  const playlist = await spotifyApi.playlists.getPlaylist(queue.queuePlaylistId)
+  const queuePlaylist = await spotifyApi.playlists.getPlaylist(
+    queue.queuePlaylistId
+  )
+  const [userPlaylist] = await db
+    .select()
+    .from(playlists)
+    .where(eq(playlists.id, playlistId))
 
-  if (playlist.tracks.total > 0) {
-    await spotifyApi.playlists.removeItemsFromPlaylist(playlist.id, {
-      tracks: playlist.tracks.items.map((item) => ({
+  if (queuePlaylist.tracks.total > 0) {
+    await spotifyApi.playlists.removeItemsFromPlaylist(queuePlaylist.id, {
+      tracks: queuePlaylist.tracks.items.map((item) => ({
         uri: item.track.uri,
       })),
     })
     console.log('Removed tracks from playlist', { sessionId: playSession.id })
   }
 
-  const tracks = await llmSearchTracks({ count: 3, playlist, spotifyApi })
+  const tracks = await llmSearchTracks({
+    count: 3,
+    queuePlaylist,
+    userPlaylist,
+    spotifyApi,
+  })
   await spotifyApi.playlists.addItemsToPlaylist(
-    playlist.id,
+    queuePlaylist.id,
     tracks.map((track) => track.uri)
   )
   console.log('Added tracks to playlist', { sessionId: playSession.id })
   await spotifyApi.player.startResumePlayback(
     playSession.deviceId,
-    playlist.uri
+    queuePlaylist.uri
   )
   console.log('Started playback', { sessionId: playSession.id })
-  let lastCheckedPlaying = (await spotifyApi.player.getCurrentlyPlayingTrack())
-    ?.item
+  let lastCheckedPlaying: PlaybackTrack = tracks[0]
 
   while (true) {
     await new Promise((resolve) =>
@@ -144,6 +166,7 @@ async function playlistLoop({
     try {
       const updateResult = await playlistLoopUpdate({
         playSessionId: playSession.id,
+        playlistId: userPlaylist.id,
         authSession,
         lastCheckedPlaying,
       })
@@ -160,27 +183,32 @@ async function playlistLoop({
 
 async function playlistLoopUpdate({
   playSessionId,
+  playlistId,
   authSession,
   lastCheckedPlaying,
 }: {
   playSessionId: string
+  playlistId: string
   authSession: AuthSession
-  lastCheckedPlaying: TrackItem
-}): Promise<{ currentlyPlaying: TrackItem }> {
-  const [{ play_sessions: playSession, playlist_queues: queue }] = await db
+  lastCheckedPlaying: PlaybackTrack
+}): Promise<{ currentlyPlaying: PlaybackTrack }> {
+  const userActiveSessions = await db
     .select()
     .from(playSessions)
     .innerJoin(playlistQueues, eq(playSessions.queueId, playlistQueues.id))
-    .where(eq(playSessions.id, playSessionId))
-    .limit(1)
+    .where(
+      and(eq(playSessions.id, playSessionId), isNull(playSessions.stoppedAt))
+    )
 
-  if (!playSession) {
+  if (!userActiveSessions.length) {
     console.log('Play session ended, stopping playlist loop', {
       sessionId: playSessionId,
     })
     return { currentlyPlaying: lastCheckedPlaying }
   }
 
+  const [{ play_sessions: playSession, playlist_queues: queue }] =
+    userActiveSessions
   const spotifyApi = await getServerSpotifyApi(authSession)
 
   const currentlyPlaying = (await spotifyApi.player.getCurrentlyPlayingTrack())
@@ -195,7 +223,13 @@ async function playlistLoopUpdate({
 
   console.log('Updating playlist queue', { sessionId: playSession.id })
 
-  const playlist = await spotifyApi.playlists.getPlaylist(queue.queuePlaylistId)
+  const [userPlaylist] = await db
+    .select()
+    .from(playlists)
+    .where(eq(playlists.id, playlistId))
+  const queuePlaylist = await spotifyApi.playlists.getPlaylist(
+    queue.queuePlaylistId
+  )
 
   console.log('Adding more tracks to playlist queue', {
     sessionId: playSession.id,
@@ -203,12 +237,13 @@ async function playlistLoopUpdate({
 
   const newTracks = await llmSearchTracks({
     count: 1,
-    playlist,
+    userPlaylist,
+    queuePlaylist,
     spotifyApi,
   })
 
   await spotifyApi.playlists.addItemsToPlaylist(
-    playlist.id,
+    queuePlaylist.id,
     newTracks.map((track) => track.uri)
   )
 
@@ -228,14 +263,16 @@ const SelectedMusicSchema = z.array(
 
 async function llmSearchTracks({
   count,
-  playlist,
+  userPlaylist,
+  queuePlaylist,
   spotifyApi,
 }: {
   count: number
-  playlist: Playlist
+  userPlaylist: Playlist
+  queuePlaylist: SpotifyPlaylist
   spotifyApi: SpotifyApi
 }) {
-  const history = playlist.tracks.items.map((track) => ({
+  const history = queuePlaylist.tracks.items.map((track) => ({
     songTitle: track.track.name,
   }))
 
@@ -245,12 +282,13 @@ Your task is to analyze the provided playlist description
 and generate a JSON array representing the best song that fits the theme and mood.
 Add variances to the song selection.
 Never pick a song that is present in the history unless explicitly allowed in the playlist description.
+Stick to the requested music genres even when diversity is asked.
 
 Return ${count * 2} songs, all different.
 
 ### PLAYLIST DETAILS
 
-DESCRIPTION: ${playlist.description}
+DESCRIPTION: ${userPlaylist.description}
 HISTORY: ${JSON.stringify(history)}
 `
 
@@ -290,7 +328,7 @@ HISTORY: ${JSON.stringify(history)}
     const matchedTrack = searchResult.tracks?.items.at(0)
     const duplicate = [
       ...matchedTracks,
-      ...playlist.tracks.items.map((x) => x.track),
+      ...queuePlaylist.tracks.items.map((x) => x.track),
     ].some((item) => item.uri === matchedTrack?.uri)
 
     if (matchedTrack && !duplicate) {

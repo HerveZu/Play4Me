@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/providers/auth'
 import { StopPlaylistInput } from '@/app/(authenticated)/api/playlist/stop+api'
 import { StartPlaylistInput } from '@/app/(authenticated)/api/playlist/start+api'
-import { Playlist } from '@/app/(authenticated)/api/playlist/index+api'
+import { UserPlaylist } from '@/app/(authenticated)/api/playlist/index+api'
 
 export function usePlaylists(): PlaylistsContextType {
   const context = useContext(PlaylistsContext)
@@ -17,10 +17,10 @@ export function usePlaylists(): PlaylistsContextType {
 }
 
 type PlaylistsContextType = {
-  playlists: Playlist[] | undefined
+  playlists: UserPlaylist[] | undefined
   start: (input: StartPlaylistInput) => Promise<void>
   stop: (input: StopPlaylistInput) => Promise<void>
-  createPlaylist: (input: CreatePlaylistInput) => Promise<Playlist>
+  createPlaylist: (input: CreatePlaylistInput) => Promise<UserPlaylist>
 }
 const PlaylistsContext = createContext<PlaylistsContextType | null>(null)
 
@@ -29,12 +29,12 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
 
   const { data: playlists, refetch } = useQuery({
     queryKey: ['playlists'],
-    queryFn: async () => await fetch<Playlist[]>('/api/playlist'),
+    queryFn: async () => await fetch<UserPlaylist[]>('/api/playlist'),
   })
 
   const { mutateAsync: createPlaylist } = useMutation({
     mutationFn: async (playlist: CreatePlaylistInput) =>
-      await fetch<Playlist>('/api/playlist/create', {
+      await fetch<UserPlaylist>('/api/playlist/create', {
         method: 'POST',
         body: JSON.stringify(playlist),
       }),
@@ -43,7 +43,7 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
 
   const { mutateAsync: start } = useMutation({
     mutationFn: async (input: StartPlaylistInput) => {
-      await fetch<Playlist>('/api/playlist/start', {
+      await fetch<UserPlaylist>('/api/playlist/start', {
         method: 'POST',
         body: JSON.stringify(input),
       })
@@ -53,7 +53,7 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
 
   const { mutateAsync: stop } = useMutation({
     mutationFn: async (input: StopPlaylistInput) => {
-      await fetch<Playlist>('/api/playlist/stop', {
+      await fetch<UserPlaylist>('/api/playlist/stop', {
         method: 'POST',
         body: JSON.stringify(input),
       })

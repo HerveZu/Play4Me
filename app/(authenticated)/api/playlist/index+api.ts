@@ -3,7 +3,7 @@ import { db } from '@/db'
 import { playlists, playSessions } from '@/db/schema/public'
 import { and, count, eq, isNull } from 'drizzle-orm'
 
-export type Playlist = typeof playlists.$inferSelect & { active: boolean }
+export type UserPlaylist = typeof playlists.$inferSelect & { active: boolean }
 
 export async function GET(request: Request) {
   return await withSession(request, async (session) => {
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       userPlaylists.map((playlist) => ({
         ...playlist,
         active: playlist.activeSessionsCount > 0,
-      })) as Playlist[]
+      })) as UserPlaylist[]
     )
   })
 }

@@ -1,7 +1,7 @@
 import { Button, Form, Host, Section, Text } from '@expo/ui/swift-ui'
 import { usePlaylists } from '@/providers/playlists'
 import { usePlayback } from '@/providers/playback'
-import { Playlist } from '@/app/(authenticated)/api/playlist/index+api'
+import { UserPlaylist } from '@/app/(authenticated)/api/playlist/index+api'
 import { PlayingIndicator } from '@/lib/PlayingIndicator'
 import { useMemo } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -37,7 +37,7 @@ export default function HomePage() {
   )
 }
 
-function PlaylistSection({ playlist }: { playlist: Playlist }) {
+function PlaylistSection({ playlist }: { playlist: UserPlaylist }) {
   const { start, stop } = usePlaylists()
   const { defaultPlaybackDevice } = usePlayback()
 

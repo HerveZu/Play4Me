@@ -1,7 +1,7 @@
 import { withSession } from '@/lib/auth'
 import { db } from '@/db'
 import { playlistQueues, playSessions } from '@/db/schema/public'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { getServerSpotifyApi } from '@/lib/spotify-server'
 
 export type StopPlaylistInput = {
@@ -11,7 +11,7 @@ export type StopPlaylistInput = {
 export async function POST(request: Request) {
   return await withSession(request, async (session) => {
     const input = (await request.json()) as StopPlaylistInput
-    const [activeSession] = await db
+    const activeSessions = await db
       .select()
       .from(playSessions)
       .innerJoin(playlistQueues, eq(playSessions.queueId, playlistQueues.id))
@@ -23,16 +23,24 @@ export async function POST(request: Request) {
         )
       )
 
-    if (!activeSession) {
+    if (!activeSessions.length) {
       return new Response('No active session', {
         status: 404,
       })
     }
 
+    const sessionIds = activeSessions.map((s) => s.play_sessions.id)
+    const deviceIds = [
+      ...new Set(activeSessions.map((s) => s.play_sessions.deviceId)),
+    ]
+
+    console.log('Stopping playback on devices: ', { sessionIds, deviceIds })
+
     try {
       const spotifyApi = await getServerSpotifyApi(session)
-      await spotifyApi.player.pausePlayback(
-        activeSession.play_sessions.deviceId
+
+      await Promise.all(
+        deviceIds.map((deviceId) => spotifyApi.player.pausePlayback(deviceId))
       )
     } finally {
       await db
@@ -40,9 +48,9 @@ export async function POST(request: Request) {
         .set({
           stoppedAt: new Date(),
         })
-        .where(eq(playSessions.id, activeSession.play_sessions.id))
+        .where(inArray(playSessions.id, sessionIds))
     }
 
-    return Response.json({ sessionId: activeSession.play_sessions.id })
+    return Response.json({ sessionIds })
   })
 }

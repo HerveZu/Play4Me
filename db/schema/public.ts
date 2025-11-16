@@ -37,5 +37,6 @@ export const playlists = pgTable('playlists', {
   description: text('description').notNull(),
 })
 
+export type Playlist = typeof playlists.$inferSelect
 export type PlaySession = typeof playSessions.$inferSelect
 export type PlaylistQueue = typeof playlistQueues.$inferSelect
