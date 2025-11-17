@@ -2,7 +2,8 @@ import { IResponseDeserializer, SpotifyApi } from '@spotify/web-api-ts-sdk'
 import { differenceInSeconds } from 'date-fns'
 
 export const SPOTIFY = {
-  clientId: process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID!,
+  clientId: (process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ??
+    process.env.SPOTIFY_CLIENT_ID)!,
 }
 
 // https://github.com/spotify/spotify-web-api-ts-sdk/issues/127
