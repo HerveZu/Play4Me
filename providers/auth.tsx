@@ -62,6 +62,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         )
       }
 
+      if (response.status === 204) {
+        return null as unknown as Response
+      }
+
       return (await response.json()) as Response
     },
     []

@@ -43,7 +43,7 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
 
   const { mutateAsync: start } = useMutation({
     mutationFn: async (input: StartPlaylistInput) => {
-      await fetch<UserPlaylist>('/api/playlist/start', {
+      await fetch('/api/playlist/start', {
         method: 'POST',
         body: JSON.stringify(input),
       })
@@ -53,7 +53,7 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
 
   const { mutateAsync: stop } = useMutation({
     mutationFn: async (input: StopPlaylistInput) => {
-      await fetch<UserPlaylist>('/api/playlist/stop', {
+      await fetch('/api/playlist/stop', {
         method: 'POST',
         body: JSON.stringify(input),
       })

@@ -9,7 +9,7 @@ export type StopPlaylistInput = {
 }
 
 export async function POST(request: Request) {
-  return await withSession(request, async (session) => {
+  return await withSession(request, async (authSessino) => {
     const input = (await request.json()) as StopPlaylistInput
     const activeSessions = await db
       .select()
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       .innerJoin(playlistQueues, eq(playSessions.queueId, playlistQueues.id))
       .where(
         and(
-          eq(playSessions.ownerId, session.user.id),
+          eq(playSessions.ownerId, authSessino.user.id),
           eq(playSessions.playlistId, input.playlistId),
           isNull(playSessions.stoppedAt)
         )
@@ -34,10 +34,12 @@ export async function POST(request: Request) {
       ...new Set(activeSessions.map((s) => s.play_sessions.deviceId)),
     ]
 
-    console.log('Stopping playback on devices: ', { sessionIds, deviceIds })
+    console.info('Stopping playback on devices: ', { sessionIds, deviceIds })
 
     try {
-      const spotifyApi = await getServerSpotifyApi(session)
+      const spotifyApi = await getServerSpotifyApi({
+        userId: authSessino.user.id,
+      })
 
       await Promise.all(
         deviceIds.map((deviceId) => spotifyApi.player.pausePlayback(deviceId))
