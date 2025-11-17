@@ -11,6 +11,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { getServerSpotifyApi } from '@/lib/spotify-server'
 import { deferTask } from 'expo-server'
 import { llmSearchTracks } from '@/lib/llmSearchTracks'
+import { Playlist, Track } from '@spotify/web-api-ts-sdk'
 
 export type StartPlaylistInput = {
   playlistId: string
@@ -44,26 +45,49 @@ export async function POST(request: Request) {
     const spotifyApi = await getServerSpotifyApi({
       userId: authSession.user.id,
     })
-    const spotifyUser = await spotifyApi.currentUser.profile()
 
-    if (!queue) {
-      console.info('No queue found, creating one')
-      const queuePlaylist = await spotifyApi.playlists.createPlaylist(
+    let queuePlaylist = queue
+      ? await spotifyApi.playlists.getPlaylist(queue.queuePlaylistId)
+      : null
+
+    if (queuePlaylist) {
+      console.info('Playlist matching the queue found', {
+        playlistId: queuePlaylist.id,
+      })
+    } else {
+      console.info('No playlist matching the queue found')
+
+      const spotifyUser = await spotifyApi.currentUser.profile()
+      queuePlaylist = (await spotifyApi.playlists.createPlaylist(
         spotifyUser.id,
         {
           name: 'Play4Me',
           description: 'Play4Me uses this playlist to queue songs.',
           public: false,
         }
-      )
-      const [createdQueue] = await db
-        .insert(playlistQueues)
-        .values({
-          queuePlaylistId: queuePlaylist.id,
-          ownerId: authSession.user.id,
-        })
-        .returning()
-      queue = createdQueue
+      )) as Playlist<Track>
+
+      if (queue) {
+        console.info('Updating queue with new playlist id')
+        const [updatedQueue] = await db
+          .update(playlistQueues)
+          .set({
+            queuePlaylistId: queuePlaylist.id,
+          })
+          .where(eq(playlistQueues.id, queue.id))
+          .returning()
+        queue = updatedQueue
+      } else {
+        console.info('Creating queue with new playlist id')
+        const [createdQueue] = await db
+          .insert(playlistQueues)
+          .values({
+            queuePlaylistId: queuePlaylist.id,
+            ownerId: authSession.user.id,
+          })
+          .returning()
+        queue = createdQueue
+      }
     }
 
     const [playSession] = await db
