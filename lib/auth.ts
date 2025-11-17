@@ -4,6 +4,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { db } from '@/db'
 import * as authSchema from '@/db/schema/auth'
 import { authClient } from '@/providers/auth'
+import { SPOTIFY } from '@/lib/spotify'
 
 export type AuthSession = NonNullable<
   ReturnType<typeof authClient.useSession>['data']
@@ -13,7 +14,7 @@ export const auth = betterAuth({
   plugins: [expo()],
   socialProviders: {
     spotify: {
-      clientId: process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID!,
+      clientId: SPOTIFY.clientId,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
       scope: [
         'user-read-playback-state',
