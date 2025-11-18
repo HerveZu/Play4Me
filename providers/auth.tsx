@@ -10,8 +10,10 @@ import {
 import { Redirect } from 'expo-router'
 import { AuthSession } from '@/lib/auth'
 import { HTTPMethod } from 'better-call'
+import { makeUrl } from '@/lib/utils'
 
 export const authClient = createAuthClient({
+  baseURL: makeUrl('/api/auth'),
   plugins: [
     expoClient({
       scheme: 'com.play4me',
@@ -42,13 +44,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const { data } = authClient.useSession()
 
   const authFetch = useCallback(
-    async <Response,>(url: string, options?: FetchOptions) => {
+    async <Response,>(path: string, options?: FetchOptions) => {
       const cookies = authClient.getCookie()
       const headers = {
         Cookie: cookies,
         'Content-Type': options?.body ? 'application/json' : '',
       }
-      const response = await fetch(url, {
+
+      const response = await fetch(makeUrl(path), {
         headers,
         // 'include' can interfere with the cookies we just set manually in the headers
         credentials: 'omit',
@@ -57,7 +60,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch data at ${options?.method ?? 'GET'} ${url} (${response.status}): ${response.statusText}`
+          `Failed to fetch data at ${options?.method ?? 'GET'} ${path} (${response.status}): ${response.statusText}`
         )
       }
 
