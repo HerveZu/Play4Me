@@ -9,7 +9,7 @@ import {
   playSessions,
 } from '../../db/schema/public'
 import { llmSearchTracks } from '../../lib/llmSearchTracks'
-import { getServerSpotifyApi } from '../../lib/spotify-server'
+import { getServerSpotifyApi } from '../../lib/spotifyServer'
 
 export default async () => {
   const activeSessions = await db

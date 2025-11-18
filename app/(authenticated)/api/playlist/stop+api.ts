@@ -2,7 +2,7 @@ import { withSession } from '@/lib/auth'
 import { db } from '@/db'
 import { playlistQueues, playSessions } from '@/db/schema/public'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { getServerSpotifyApi } from '@/lib/spotify-server'
+import { getServerSpotifyApi } from '@/lib/spotifyServer'
 
 export type StopPlaylistInput = {
   playlistId: string

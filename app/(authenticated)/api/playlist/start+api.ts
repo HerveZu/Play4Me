@@ -8,7 +8,7 @@ import {
   playSessions,
 } from '@/db/schema/public'
 import { and, eq, isNull } from 'drizzle-orm'
-import { getServerSpotifyApi } from '@/lib/spotify-server'
+import { getServerSpotifyApi } from '@/lib/spotifyServer'
 import { deferTask } from 'expo-server'
 import { llmSearchTracks } from '@/lib/llmSearchTracks'
 import { Playlist, Track } from '@spotify/web-api-ts-sdk'
