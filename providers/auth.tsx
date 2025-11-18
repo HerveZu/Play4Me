@@ -13,6 +13,7 @@ import { HTTPMethod } from 'better-call'
 import { makeUrl } from '@/lib/utils'
 
 export const authClient = createAuthClient({
+  baseURL: makeUrl('/api/auth'),
   plugins: [
     expoClient({
       scheme: 'com.play4me',
