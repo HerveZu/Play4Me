@@ -2,7 +2,7 @@ import { authClient } from '@/providers/auth'
 import { Button, Host } from '@expo/ui/swift-ui'
 import { useEffect } from 'react'
 import { useRouter } from 'expo-router'
-import { ActivityIndicator } from 'react-native'
+import { ActivityIndicator, View } from 'react-native'
 
 export default function SocialSignIn() {
   const session = authClient.useSession()
@@ -21,9 +21,16 @@ export default function SocialSignIn() {
   return (
     <Host style={{ flex: 1 }}>
       {session.isPending ? (
-        <Host>
+        <View
+          style={{
+            flex: 1,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
           <ActivityIndicator />
-        </Host>
+        </View>
       ) : (
         <Button onPress={handleLogin}>Login with Spotify</Button>
       )}
