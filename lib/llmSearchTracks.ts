@@ -29,24 +29,36 @@ export async function llmSearchTracks({
   queuePlaylist: SpotifyPlaylist
   spotifyApi: SpotifyApi
 }) {
-  const history = queuePlaylist.tracks.items.map((track) => ({
-    songTitle: track.track.name,
+  const playerHistory = await spotifyApi.player.getRecentlyPlayedTracks(50)
+
+  const historyItems = [
+    ...queuePlaylist.tracks.items,
+    ...playerHistory.items,
+  ].map((historyItem) => ({
+    type: historyItem.track.type,
+    name: historyItem.track.name,
   }))
 
   const systemPrompt = `
-You are an expert music curator and playlist generator. 
-Your task is to analyze the provided playlist description 
-and generate a JSON array representing the best song that fits the theme and mood.
-Add variances to the song selection.
-Never pick a song that is present in the history unless explicitly allowed in the playlist description.
-Stick to the requested music genres even when diversity is asked.
+You are an expert music curator and radio programmer.
 
-Return ${count * 2} songs, all different.
+Your task is to analyze the user’s playlist description and generate 
+**an array of ${count * 2} song recommendations** intended to fill the next **${count} scheduled radio slots**.  
+Each slot should have **two candidate songs**, allowing dynamic radio-style decision-making.
 
-### PLAYLIST DETAILS
+**Rules:**
+- Treat the output as programming a live radio sequence.
+- For each upcoming slot, provide **2 different possible songs** that match the required energy, theme, and mood.
+- Maintain smooth radio-style transitions (energy flow, genre coherence, mood shaping).
+- Always respect the requested genres. If diversity is requested, vary only *within* the allowed genres.
+- Include natural variance—avoid repetitive patterns in era, style, or artists.
+- Never select any song that appears in the provided history unless explicitly allowed.
 
-DESCRIPTION: ${userPlaylist.description}
-HISTORY: ${JSON.stringify(history)}
+**Radio Description**
+${userPlaylist.description}
+
+**Previously scheduled items**
+${JSON.stringify(historyItems)}
 `
 
   const chatCompletion = await groq.chat.completions.create({
@@ -57,12 +69,11 @@ HISTORY: ${JSON.stringify(history)}
       },
     ],
     model: process.env.GROQ_MODEL!,
-    temperature: 0.8,
     response_format: {
       type: 'json_schema',
       json_schema: {
-        name: 'SelectedSongs',
-        description: 'An array of selected songs',
+        name: 'RadioSelectedSongs',
+        description: 'The next songs to scheduled',
         schema: z.toJSONSchema(SelectedMusicSchema),
       },
     },
