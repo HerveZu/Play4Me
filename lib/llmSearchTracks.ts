@@ -11,12 +11,27 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 })
 
-const SelectedMusicSchema = z.array(
-  z.object({
-    title: z.string().describe('The song name'),
-    artist: z.string().describe('The main artist of the song'),
+const ScheduleMusicOptionSchema = z
+  .object({
+    title: z.string().describe('The song title'),
+    artist: z.string().describe('The primary artist of the song'),
   })
+  .describe('The music schedule option for one radio slot.')
+
+const MusicSlotSchema = z
+  .object({
+    a: ScheduleMusicOptionSchema.describe('The slot option A.'),
+    b: ScheduleMusicOptionSchema.describe('The slot option B.'),
+  })
+  .describe('The radio music schedule slot.')
+
+const MusicSlotsSchema = z.array(
+  MusicSlotSchema.describe(
+    'The scheduled songs slots. They must be unique and not contain duplicates.'
+  )
 )
+
+type HistoryItem = { name: string; type: string; uri: string }
 
 export async function llmSearchTracks({
   count,
@@ -31,18 +46,19 @@ export async function llmSearchTracks({
 }) {
   const playerHistory = await spotifyApi.player.getRecentlyPlayedTracks(50)
 
-  const historyItems = [
+  const historyItems: HistoryItem[] = [
     ...queuePlaylist.tracks.items,
     ...playerHistory.items,
   ].map((historyItem) => ({
     type: historyItem.track.type,
     name: historyItem.track.name,
+    uri: historyItem.track.uri,
   }))
 
   const systemPrompt = `
-You are an expert music curator and radio programmer.
+You are an expert music radio programmer.
 
-Your task is to analyze the user’s playlist description and generate 
+Your task is to analyze the user’s radio description and generate 
 **an array of ${count * 2} song recommendations** intended to fill the next **${count} scheduled radio slots**.  
 Each slot should have **two candidate songs**, allowing dynamic radio-style decision-making.
 
@@ -57,8 +73,8 @@ Each slot should have **two candidate songs**, allowing dynamic radio-style deci
 **Radio Description**
 ${userPlaylist.description}
 
-**Previously scheduled items**
-${JSON.stringify(historyItems)}
+**Scheduled history**
+${JSON.stringify(historyItems.map(({ name, type }) => ({ name, type })))}
 `
 
   const chatCompletion = await groq.chat.completions.create({
@@ -72,35 +88,26 @@ ${JSON.stringify(historyItems)}
     response_format: {
       type: 'json_schema',
       json_schema: {
-        name: 'RadioSelectedSongs',
-        description: 'The next songs to scheduled',
-        schema: z.toJSONSchema(SelectedMusicSchema),
+        name: 'RadioSongSlots',
+        description: 'The scheduled songs slots',
+        schema: z.toJSONSchema(MusicSlotsSchema),
       },
     },
   })
 
   const jsonString = chatCompletion.choices[0]?.message?.content
-  const selectedMusic = SelectedMusicSchema.parse(
-    JSON.parse(jsonString ?? '[]')
-  )
-
+  const musicSlots = MusicSlotsSchema.parse(JSON.parse(jsonString ?? '[]'))
   const matchedTracks: Track[] = []
 
-  for (const song of selectedMusic.sort(() => Math.random() - 0.5)) {
-    const searchResult = await spotifyApi.search(
-      `track:"${song.title}" artist:"${song.artist}"`,
-      ['track'],
-      undefined,
-      1
-    )
-    const matchedTrack = searchResult.tracks?.items.at(0)
-    const duplicate = [
-      ...matchedTracks,
-      ...queuePlaylist.tracks.items.map((x) => x.track),
-    ].some((item) => item.uri === matchedTrack?.uri)
+  for (const musicSlot of musicSlots) {
+    const slotSong = await songForSlot({
+      slot: musicSlot,
+      history: [...historyItems, ...matchedTracks],
+      spotifyApi,
+    })
 
-    if (matchedTrack && !duplicate) {
-      matchedTracks.push(matchedTrack)
+    if (slotSong) {
+      matchedTracks.push(slotSong)
     }
 
     if (matchedTracks.length >= count) {
@@ -109,4 +116,34 @@ ${JSON.stringify(historyItems)}
   }
 
   return matchedTracks
+}
+
+async function songForSlot({
+  slot,
+  history,
+  spotifyApi,
+}: {
+  slot: z.infer<typeof MusicSlotSchema>
+  history: HistoryItem[]
+  spotifyApi: SpotifyApi
+}): Promise<Track | null> {
+  const slotResults = await Promise.all(
+    [slot.a, slot.b].map(async (option) => {
+      const results = await spotifyApi.search(
+        `track:"${option.title}" artist:"${option.artist}"`,
+        ['track'],
+        undefined,
+        1
+      )
+
+      return results.tracks?.items.at(0)
+    })
+  )
+
+  return (
+    slotResults.find(
+      (result) =>
+        result && !history.some((historyItem) => historyItem.uri === result.uri)
+    ) ?? null
+  )
 }

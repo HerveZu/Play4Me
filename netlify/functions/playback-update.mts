@@ -32,7 +32,7 @@ export const config: Config = {
   schedule: '* * * * *',
 }
 
-const MIN_TRACKS_IN_QUEUE = 5
+const MIN_TRACKS_IN_QUEUE = 10
 
 async function updatePlayback({
   playSession,
@@ -91,7 +91,7 @@ async function updatePlayback({
   })
 
   const newTracks = await llmSearchTracks({
-    count: missingTracks,
+    count: Math.ceil(1.5 * missingTracks), // schedule more tracks to avoid rescheduling for each song end
     userPlaylist,
     queuePlaylist,
     spotifyApi,

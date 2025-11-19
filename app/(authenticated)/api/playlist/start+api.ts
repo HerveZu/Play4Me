@@ -147,11 +147,16 @@ async function startPlayback({
   }
 
   const tracks = await llmSearchTracks({
-    count: 3,
+    count: 10,
     queuePlaylist,
     userPlaylist,
     spotifyApi,
   })
+
+  if (tracks.length === 0) {
+    throw new Error('No tracks scheduled for playlist')
+  }
+
   const firstTrack = tracks[0]
   console.info('Adding first tracks to playlist', {
     sessionId: playSession.id,
