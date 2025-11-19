@@ -12,6 +12,7 @@ export default function HomeLayout() {
           headerTitle: 'Play4Me',
           headerTintColor: 'foreground',
           headerTransparent: true,
+          headerLargeTitle: true,
         }}
       />
     </Stack>

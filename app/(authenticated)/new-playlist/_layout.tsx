@@ -9,6 +9,7 @@ export default function NewPlaylistLayout() {
           title: 'Create Your Playlist',
           headerTintColor: 'foreground',
           headerTransparent: true,
+          headerLargeTitle: true,
         }}
       />
     </Stack>

@@ -12,6 +12,7 @@ export default function SettingsLayout() {
           title: 'Settings',
           headerTintColor: 'foreground',
           headerTransparent: true,
+          headerLargeTitle: true,
         }}
       />
     </Stack>
