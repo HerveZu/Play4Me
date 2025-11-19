@@ -48,7 +48,7 @@ async function updatePlayback({
     spotifyApi.player.getCurrentlyPlayingTrack(),
   ])
 
-  const playingItemFromQueue = queuePlaylist.tracks.items
+  const playingItemFromQueue = currentlyPlaying && queuePlaylist.tracks.items
     .map((item, position) => ({ ...item, position }))
     .find((item) => item.track.uri === currentlyPlaying.item.uri)
 
