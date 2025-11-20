@@ -68,27 +68,29 @@ function PlaylistCard({ playlist }: { playlist: UserPlaylist }) {
   }
   return (
     <Section modifiers={[padding({ all: 4 })]}>
-      <VStack alignment={'leading'}>
-        <HStack>
-          <Text weight={'bold'}>{playlist.title}</Text>
+      <VStack onPress={handlePress}>
+        <VStack alignment={'leading'}>
+          <HStack>
+            <Text weight={'bold'}>{playlist.title}</Text>
+            <Spacer />
+            {state === 'pending' && <CircularProgress />}
+          </HStack>
           <Spacer />
-          {state === 'pending' && <CircularProgress />}
-        </HStack>
-        <Spacer />
-        <Text>{playlist.description}</Text>
-      </VStack>
+          <Text>{playlist.description}</Text>
+        </VStack>
 
-      <HStack>
-        <Spacer />
-        <VinylDisk
-          color={'red'}
-          size={240}
-          playlist={playlist}
-          state={state}
-          onPress={handlePress}
-        />
-        <Spacer />
-      </HStack>
+        <Spacer minLength={30} />
+        <HStack>
+          <Spacer />
+          <VinylDisk
+            color={'red'}
+            size={240}
+            playlist={playlist}
+            state={state}
+          />
+          <Spacer />
+        </HStack>
+      </VStack>
     </Section>
   )
 }
@@ -106,13 +108,11 @@ function VinylDisk({
   size,
   playlist,
   state,
-  onPress,
 }: {
   color: string
   size: number
   playlist: UserPlaylist
   state: VinylState
-  onPress?: () => void
 }) {
   const [rotation, setRotation] = useState(0)
 
@@ -128,10 +128,7 @@ function VinylDisk({
   const innerDiskSize = 0.4 * size
 
   return (
-    <VStack
-      onPress={onPress}
-      modifiers={[padding({ top: size }), rotationEffect(rotation)]}
-    >
+    <VStack modifiers={[padding({ top: size }), rotationEffect(rotation)]}>
       {Array.from({ length: VinyConst.CIRCLE_COUNT }).map((_, i) => {
         const circleSize =
           ((VinyConst.CIRCLE_COUNT - i) / VinyConst.CIRCLE_COUNT) *
