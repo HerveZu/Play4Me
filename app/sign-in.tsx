@@ -1,16 +1,11 @@
 import { authClient } from '@/providers/auth'
-import { Button, Host } from '@expo/ui/swift-ui'
-import { useEffect } from 'react'
+import { Button, Host, Text, VStack } from '@expo/ui/swift-ui'
 import { useRouter } from 'expo-router'
-import { ActivityIndicator, View } from 'react-native'
+import { useEffect } from 'react'
 
 export default function SocialSignIn() {
-  const session = authClient.useSession()
   const router = useRouter()
-
-  useEffect(() => {
-    session.data && router.replace('/home')
-  }, [router, session])
+  const { data } = authClient.useSession()
 
   const handleLogin = async () => {
     await authClient.signIn.social({
@@ -18,22 +13,19 @@ export default function SocialSignIn() {
       callbackURL: '/success',
     })
   }
+
+  useEffect(() => {
+    data && router.replace('/home')
+  }, [router, data])
+
   return (
     <Host style={{ flex: 1 }}>
-      {session.isPending ? (
-        <View
-          style={{
-            flex: 1,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          <ActivityIndicator />
-        </View>
-      ) : (
-        <Button onPress={handleLogin}>Login with Spotify</Button>
-      )}
+      <VStack spacing={24}>
+        <Text size={28}>Welcome to Play4Me!</Text>
+        <Button onPress={handleLogin} variant={'glassProminent'}>
+          Login with Spotify
+        </Button>
+      </VStack>
     </Host>
   )
 }
