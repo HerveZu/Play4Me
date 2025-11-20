@@ -20,8 +20,8 @@ export default function SocialSignIn() {
 
   return (
     <Host style={{ flex: 1 }}>
-      <VStack spacing={24}>
-        <Text size={28}>Welcome to Play4Me!</Text>
+      <VStack spacing={48}>
+        <Text size={24}>Welcome to Play4Me!</Text>
         <Button onPress={handleLogin} variant={'glassProminent'}>
           Login with Spotify
         </Button>
