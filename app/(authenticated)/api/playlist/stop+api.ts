@@ -30,20 +30,21 @@ export async function POST(request: Request) {
     }
 
     const sessionIds = activeSessions.map((s) => s.play_sessions.id)
-    const deviceIds = [
-      ...new Set(activeSessions.map((s) => s.play_sessions.deviceId)),
-    ]
-
-    console.info('Stopping playback on devices: ', { sessionIds, deviceIds })
 
     try {
       const spotifyApi = await getServerSpotifyApi({
         userId: authSessino.user.id,
       })
 
-      await Promise.all(
-        deviceIds.map((deviceId) => spotifyApi.player.pausePlayback(deviceId))
-      )
+      const playbackState = await spotifyApi.player.getPlaybackState()
+
+      if (playbackState.is_playing && playbackState.device.id) {
+        console.info('Stopping playback on devices: ', {
+          sessionIds,
+          deviceId: playbackState.device.id,
+        })
+        await spotifyApi.player.pausePlayback(playbackState.device.id)
+      }
     } finally {
       await db
         .update(playSessions)
