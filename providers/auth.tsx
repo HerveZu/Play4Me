@@ -44,7 +44,7 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const { data } = authClient.useSession()
+  const { data, isPending } = authClient.useSession()
 
   const authFetch = useCallback(
     async <Response,>(path: string, options?: FetchOptions) => {
@@ -75,6 +75,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     },
     []
   )
+
+  if (isPending) {
+    return null
+  }
 
   return data ? (
     <AuthContext.Provider value={{ fetch: authFetch, ...data }}>
