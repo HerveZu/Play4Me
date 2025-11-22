@@ -44,7 +44,10 @@ export async function llmSearchTracks({
   queuePlaylist: SpotifyPlaylist
   spotifyApi: SpotifyApi
 }) {
-  const playerHistory = await spotifyApi.player.getRecentlyPlayedTracks(50)
+  const [playerHistory, topArtists] = await Promise.all([
+    spotifyApi.player.getRecentlyPlayedTracks(50),
+    spotifyApi.currentUser.topItems('artists', 'medium_term', 50),
+  ])
 
   const historyItems: HistoryItem[] = [
     ...queuePlaylist.tracks.items,
@@ -61,6 +64,7 @@ You are an expert music radio programmer.
 Your task is to analyze the user’s radio description and generate 
 **an array of ${count * 2} song recommendations** intended to fill the next **${count} scheduled radio slots**.  
 Each slot should have **two candidate songs**, allowing dynamic radio-style decision-making.
+Choose songs similar to the user's top artists and genres when applicable.
 
 **Rules:**
 - Treat the output as programming a live radio sequence.
@@ -75,6 +79,14 @@ ${userPlaylist.description}
 
 **Scheduled history**
 ${JSON.stringify(historyItems.map(({ name, type }) => ({ name, type })))}
+
+**User top artists**
+${JSON.stringify(
+  topArtists.items.map((artist) => ({
+    genres: artist.genres,
+    name: artist.name,
+  }))
+)}
 `
 
   const chatCompletion = await groq.chat.completions.create({
