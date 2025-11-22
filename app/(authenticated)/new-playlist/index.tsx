@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Form, Host, Section, TextField } from '@expo/ui/swift-ui'
 import { usePlaylists } from '@/providers/playlists'
-import { useRouter } from 'expo-router'
+import { useNavigation, useRouter } from 'expo-router'
 import { frame } from '@expo/ui/swift-ui/modifiers'
 import { useMutation } from '@tanstack/react-query'
 
@@ -9,17 +9,38 @@ export default function NewPlaylistPage() {
   const [playlistName, setPlaylistName] = useState('')
   const [description, setDescription] = useState('')
   const router = useRouter()
+  const navigation = useNavigation()
 
   const { createPlaylist } = usePlaylists()
 
   const { mutate: handleCreatePlaylist, isPending } = useMutation({
     mutationFn: async () => {
-      await createPlaylist({ title: playlistName, description })
-      router.push('/home')
+      const playlist = await createPlaylist({
+        title: playlistName,
+        description,
+      })
+      router.push(`/player?playlistId=${playlist.id}`)
     },
   })
 
-  const disabled = isPending || !playlistName || !description
+  const disabled = useMemo(
+    () => isPending || !playlistName || !description,
+    [isPending, playlistName, description]
+  )
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Host matchContents>
+          <Button
+            disabled={disabled}
+            variant={'glass'}
+            systemImage={'checkmark'}
+            onPress={handleCreatePlaylist}
+          />
+        </Host>
+      ),
+    })
+  }, [disabled, handleCreatePlaylist, navigation])
 
   return (
     <Host style={{ flex: 1 }}>
@@ -35,19 +56,9 @@ export default function NewPlaylistPage() {
             onChangeText={setDescription}
             multiline
             numberOfLines={10}
-            modifiers={[frame({ height: 50 })]}
+            modifiers={[frame({ minHeight: 50 })]}
           />
         </Section>
-
-        <Host>
-          <Button
-            variant="link"
-            onPress={handleCreatePlaylist}
-            disabled={disabled}
-          >
-            Add to Playlists
-          </Button>
-        </Host>
       </Form>
     </Host>
   )

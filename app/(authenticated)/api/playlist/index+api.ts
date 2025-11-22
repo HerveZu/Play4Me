@@ -1,9 +1,12 @@
 import { withSession } from '@/lib/auth'
 import { db } from '@/db'
 import { playlists, playSessions } from '@/db/schema/public'
-import { and, count, eq, isNull } from 'drizzle-orm'
+import { desc, eq, max, sql } from 'drizzle-orm'
 
-export type UserPlaylist = typeof playlists.$inferSelect & { active: boolean }
+export type UserPlaylist = typeof playlists.$inferSelect & {
+  active: boolean
+  lastPlayedAt?: Date
+}
 
 export async function GET(request: Request) {
   return await withSession(request, async (session) => {
@@ -13,27 +16,18 @@ export async function GET(request: Request) {
         title: playlists.title,
         description: playlists.description,
         ownerId: playlists.ownerId,
-        activeSessionsCount: count(playSessions.playlistId),
+        lastPlayedAt: max(playSessions.startedAt),
+        active:
+          sql<boolean>`count(case when ${playSessions.stoppedAt} is null then 1 else null end) > 0`.as(
+            'active'
+          ),
       })
       .from(playlists)
-      .leftJoin(
-        playSessions,
-        and(
-          eq(playlists.id, playSessions.playlistId),
-          isNull(playSessions.stoppedAt)
-        )
-      )
+      .leftJoin(playSessions, eq(playlists.id, playSessions.playlistId))
       .where(eq(playlists.ownerId, session.user.id))
       .groupBy(playlists.id)
-      .orderBy(playlists.title)
+      .orderBy(playlists.title, desc(max(playSessions.startedAt)))
 
-    return Response.json(
-      userPlaylists
-        .sort((a, b) => b.activeSessionsCount - a.activeSessionsCount)
-        .map((playlist) => ({
-          ...playlist,
-          active: playlist.activeSessionsCount > 0,
-        })) as UserPlaylist[]
-    )
+    return Response.json(userPlaylists as UserPlaylist[])
   })
 }

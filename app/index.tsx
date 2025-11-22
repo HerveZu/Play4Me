@@ -1,5 +1,17 @@
-import { Redirect } from 'expo-router'
+import { useRouter } from 'expo-router'
+import { authClient } from '@/providers/auth'
+import { useEffect } from 'react'
 
 export default function IndexPage() {
-  return <Redirect href={'/sign-in'} />
+  const router = useRouter()
+  const { isPending, data } = authClient.useSession()
+
+  useEffect(() => {
+    if (isPending) {
+      return
+    }
+    router.replace(data ? '/playlists' : '/sign-in')
+  }, [router, data, isPending])
+
+  return null
 }

@@ -6,9 +6,8 @@ import {
   PropsWithChildren,
   useCallback,
   useContext,
-  useEffect,
 } from 'react'
-import { Redirect, SplashScreen } from 'expo-router'
+import { Redirect } from 'expo-router'
 import { AuthSession } from '@/lib/auth'
 import { HTTPMethod } from 'better-call'
 import { makeUrl } from '@/lib/utils'
@@ -87,13 +86,4 @@ export function AuthProvider({ children }: PropsWithChildren) {
   ) : (
     <Redirect href={'/sign-in'} />
   )
-}
-
-SplashScreen.preventAutoHideAsync()
-export function useHideSplashScreenOnAuth() {
-  const { isPending } = authClient.useSession()
-
-  useEffect(() => {
-    !isPending && SplashScreen.hideAsync()
-  }, [isPending])
 }

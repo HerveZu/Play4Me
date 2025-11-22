@@ -1,10 +1,10 @@
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { useRefreshOnFocus } from '@/lib/useRefreshOnFocus'
-import { View } from 'react-native'
-import { Button, Host, HStack } from '@expo/ui/swift-ui'
+import { Button, Host } from '@expo/ui/swift-ui'
 
 export default function PlaylistsLayout() {
   useRefreshOnFocus()
+  const router = useRouter()
 
   return (
     <Stack>
@@ -16,13 +16,13 @@ export default function PlaylistsLayout() {
           headerTransparent: true,
           headerLargeTitle: true,
           headerRight: () => (
-            <View>
-              <Host matchContents>
-                <HStack alignment={'center'}>
-                  <Button systemImage={'plus'}>New playlist</Button>
-                </HStack>
-              </Host>
-            </View>
+            <Host matchContents>
+              <Button
+                variant={'glass'}
+                systemImage={'plus'}
+                onPress={() => router.push('/new-playlist')}
+              />
+            </Host>
           ),
         }}
       />

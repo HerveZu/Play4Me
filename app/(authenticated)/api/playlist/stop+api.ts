@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
       const playbackState = await spotifyApi.player.getPlaybackState()
 
-      if (playbackState.is_playing && playbackState.device.id) {
+      if (playbackState?.is_playing && playbackState.device.id) {
         console.info('Stopping playback on devices: ', {
           sessionIds,
           deviceId: playbackState.device.id,

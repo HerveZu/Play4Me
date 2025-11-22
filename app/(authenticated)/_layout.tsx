@@ -1,7 +1,7 @@
 import React from 'react'
 import { PlaybackProvider } from '@/providers/playback'
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs'
-import { PlaylistsProvider, usePlaylists } from '@/providers/playlists'
+import { PlaylistsProvider } from '@/providers/playlists'
 import { AuthProvider } from '@/providers/auth'
 
 export default function AuthenticatedLayout() {
@@ -17,20 +17,22 @@ export default function AuthenticatedLayout() {
 }
 
 function Tabs() {
-  const { playlists } = usePlaylists()
-
   return (
     <NativeTabs>
-      <NativeTabs.Trigger name="playlists" hidden={!playlists?.length}>
+      <NativeTabs.Trigger name="playlists">
         <Label>Playlists</Label>
         <Icon sf="music.note.list" drawable="custom_android_drawable" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="player">
+      <NativeTabs.Trigger name="new-playlist">
+        <Icon sf="sparkles" />
+        <Label>New Playlist</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="player" role={'search'}>
         <Icon sf="speaker.2" />
         <Label>Player</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings" role={'search'}>
-        <Icon sf="powerplug" />
+      <NativeTabs.Trigger name="settings">
+        <Icon sf="gear" />
         <Label>Settings</Label>
       </NativeTabs.Trigger>
     </NativeTabs>

@@ -1,22 +1,13 @@
 import { authClient } from '@/providers/auth'
 import { Button, Host, Text, VStack } from '@expo/ui/swift-ui'
-import { useRouter } from 'expo-router'
-import { useEffect } from 'react'
 
 export default function SocialSignIn() {
-  const router = useRouter()
-  const { data } = authClient.useSession()
-
   const handleLogin = async () => {
     await authClient.signIn.social({
       provider: 'spotify',
-      callbackURL: '/success',
+      callbackURL: '/',
     })
   }
-
-  useEffect(() => {
-    data && router.replace('/player')
-  }, [router, data])
 
   return (
     <Host style={{ flex: 1 }}>

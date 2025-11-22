@@ -29,9 +29,9 @@ export default function NewPlaylistPage() {
 
   const playlist = useMemo(
     () =>
-      playlists?.find((playlist) => playlist.id === playlistId) ??
-      playlists?.find((playlist) => playlist.active) ??
-      playlists?.[0],
+      playlists.find((playlist) => playlist.id === playlistId) ??
+      playlists.find((playlist) => playlist.active) ??
+      playlists[0],
     [playlists, playlistId]
   )
 
@@ -42,9 +42,7 @@ export default function NewPlaylistPage() {
   }, [navigation, playlist?.title])
 
   const isActive = useMemo(
-    () =>
-      playlist &&
-      !!playlists?.some((p) => p.id === playlist.id && playlist.active),
+    () => playlists.some((p) => p.id === playlist.id && playlist.active),
     [playlist, playlists]
   )
 
@@ -61,19 +59,22 @@ export default function NewPlaylistPage() {
     mutationFn: async ({ playlistId }: { playlistId: string }) => {
       setState('pending')
 
-      switch (state) {
-        case 'paused':
-          await start({
-            playlistId,
-            deviceId: defaultPlaybackDevice?.id ?? '',
-          })
-          return
-        case 'playing':
-          await stop({ playlistId })
-          return
+      try {
+        switch (state) {
+          case 'paused':
+            await start({
+              playlistId,
+              deviceId: defaultPlaybackDevice?.id ?? '',
+            })
+            return
+          case 'playing':
+            await stop({ playlistId })
+            return
+        }
+      } finally {
+        setState(state)
       }
     },
-    onError: () => setState('paused'),
     onSuccess: () =>
       queryClient.refetchQueries({ queryKey: [PLAYBACK_QUERY_KEY] }),
   })
@@ -81,38 +82,34 @@ export default function NewPlaylistPage() {
   return (
     <Host style={{ flex: 1 }}>
       <Form>
-        {playlist && (
-          <>
-            <Section modifiers={[padding({ vertical: 4 })]}>
-              <HStack
-                onPress={() =>
-                  state !== 'pending' &&
-                  controlPlaylist({ playlistId: playlist.id })
-                }
-              >
-                <Spacer />
-                <VinylDisk color={'red'} size={260} state={state} />
-                <Spacer />
-              </HStack>
-              <HStack alignment={'center'} spacing={10}>
-                {state === 'pending' && <CircularProgress />}
-                <HStack spacing={10}>
-                  <Text>
-                    {state === 'playing' ? `Tap to pause` : `Tap to play`}
-                  </Text>
-                  <Image systemName={'circle.fill'} size={5} />
-                  {defaultPlaybackDevice && (
-                    <Text weight={'light'} lineLimit={1}>
-                      {defaultPlaybackDevice.name}
-                    </Text>
-                  )}
-                </HStack>
-              </HStack>
-            </Section>
+        <Section modifiers={[padding({ vertical: 4 })]}>
+          <HStack
+            onPress={() =>
+              state !== 'pending' &&
+              controlPlaylist({ playlistId: playlist.id })
+            }
+          >
+            <Spacer />
+            <VinylDisk color={'red'} size={260} state={state} />
+            <Spacer />
+          </HStack>
+          <HStack alignment={'center'} spacing={10}>
+            {state === 'pending' && <CircularProgress />}
+            <HStack spacing={10}>
+              <Text>
+                {state === 'playing' ? `Tap to pause` : `Tap to play`}
+              </Text>
+              <Image systemName={'circle.fill'} size={5} />
+              {defaultPlaybackDevice && (
+                <Text weight={'light'} lineLimit={1}>
+                  {defaultPlaybackDevice.name}
+                </Text>
+              )}
+            </HStack>
+          </HStack>
+        </Section>
 
-            <PlayerControls />
-          </>
-        )}
+        <PlayerControls />
       </Form>
     </Host>
   )

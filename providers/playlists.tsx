@@ -1,10 +1,11 @@
-import { createContext, PropsWithChildren, useContext } from 'react'
+import { createContext, PropsWithChildren, useContext, useEffect } from 'react'
 import { CreatePlaylistInput } from '@/app/(authenticated)/api/playlist/create+api'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/providers/auth'
 import { StopPlaylistInput } from '@/app/(authenticated)/api/playlist/stop+api'
 import { StartPlaylistInput } from '@/app/(authenticated)/api/playlist/start+api'
 import { UserPlaylist } from '@/app/(authenticated)/api/playlist/index+api'
+import { SplashScreen } from 'expo-router'
 
 export function usePlaylists(): PlaylistsContextType {
   const context = useContext(PlaylistsContext)
@@ -17,7 +18,7 @@ export function usePlaylists(): PlaylistsContextType {
 }
 
 type PlaylistsContextType = {
-  playlists: UserPlaylist[] | undefined
+  playlists: UserPlaylist[]
   start: (input: StartPlaylistInput) => Promise<void>
   stop: (input: StopPlaylistInput) => Promise<void>
   createPlaylist: (input: CreatePlaylistInput) => Promise<UserPlaylist>
@@ -27,7 +28,11 @@ const PlaylistsContext = createContext<PlaylistsContextType | null>(null)
 export function PlaylistsProvider({ children }: PropsWithChildren) {
   const { fetch } = useAuth()
 
-  const { data: playlists, refetch } = useQuery({
+  const {
+    data: playlists,
+    refetch,
+    isLoading,
+  } = useQuery({
     queryKey: ['playlists'],
     queryFn: async () => await fetch<UserPlaylist[]>('/api/playlist'),
   })
@@ -61,7 +66,11 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
     onSuccess: () => refetch(),
   })
 
-  return (
+  useEffect(() => {
+    !isLoading && SplashScreen.hide()
+  }, [isLoading])
+
+  return !playlists ? null : (
     <PlaylistsContext.Provider
       value={{
         createPlaylist,
