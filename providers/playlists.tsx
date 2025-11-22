@@ -38,7 +38,7 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
         method: 'POST',
         body: JSON.stringify(playlist),
       }),
-    onSuccess: () => refetch,
+    onSuccess: () => refetch(),
   })
 
   const { mutateAsync: start } = useMutation({

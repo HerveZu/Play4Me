@@ -1,7 +1,7 @@
 import { withSession } from '@/lib/auth'
 import { db } from '@/db'
 import {
-  PlaylistQueue,
+  Playlist,
   playlistQueues,
   playlists,
   PlaySession,
@@ -10,7 +10,7 @@ import {
 import { and, eq, isNull } from 'drizzle-orm'
 import { getServerSpotifyApi } from '@/lib/spotify/server'
 import { llmSearchTracks } from '@/lib/llmSearchTracks'
-import { Playlist, Track } from '@spotify/web-api-ts-sdk'
+import { Playlist as SpotifyPlaylist } from '@spotify/web-api-ts-sdk'
 
 export type StartPlaylistInput = {
   playlistId: string
@@ -36,57 +36,72 @@ export async function POST(request: Request) {
       sessionIds: stoppedSessions.map((s) => s.id),
     })
 
-    let [queue] = await db
-      .select()
-      .from(playlistQueues)
-      .where(eq(playlistQueues.ownerId, authSession.user.id))
+    let [[queue], [userPlaylist]] = await Promise.all([
+      db
+        .select()
+        .from(playlistQueues)
+        .where(eq(playlistQueues.ownerId, authSession.user.id)),
+      db.select().from(playlists).where(eq(playlists.id, input.playlistId)),
+    ])
 
     const spotifyApi = await getServerSpotifyApi({
       userId: authSession.user.id,
     })
+    const spotifyUser = await spotifyApi.currentUser.profile()
 
-    let queuePlaylist = queue
-      ? await spotifyApi.playlists.getPlaylist(queue.queuePlaylistId)
-      : null
-
-    if (queuePlaylist) {
-      console.info('Playlist matching the queue found', {
-        playlistId: queuePlaylist.id,
-      })
-    } else {
-      console.info('No playlist matching the queue found')
-
-      const spotifyUser = await spotifyApi.currentUser.profile()
-      queuePlaylist = (await spotifyApi.playlists.createPlaylist(
-        spotifyUser.id,
-        {
-          name: 'Play4Me',
-          description: 'Play4Me uses this playlist to queue songs.',
-          public: false,
-        }
-      )) as Playlist<Track>
-
-      if (queue) {
-        console.info('Updating queue with new playlist id')
-        const [updatedQueue] = await db
-          .update(playlistQueues)
-          .set({
-            queuePlaylistId: queuePlaylist.id,
-          })
-          .where(eq(playlistQueues.id, queue.id))
-          .returning()
-        queue = updatedQueue
-      } else {
-        console.info('Creating queue with new playlist id')
-        const [createdQueue] = await db
-          .insert(playlistQueues)
-          .values({
-            queuePlaylistId: queuePlaylist.id,
-            ownerId: authSession.user.id,
-          })
-          .returning()
-        queue = createdQueue
+    // refreshing the playlist has issues
+    // see: https://community.spotify.com/t5/Spotify-for-Developers/How-to-refresh-a-playlist-after-a-change/td-p/5076245
+    if (queue) {
+      const existingQueuePlaylist = await spotifyApi.playlists.getPlaylist(
+        queue.queuePlaylistId
+      )
+      if (existingQueuePlaylist) {
+        console.info('Playlist queue exists, unfollowing...', {
+          playlistId: queue.queuePlaylistId,
+        })
+        await fetch(
+          `https://api.spotify.com/v1/playlists/${existingQueuePlaylist.id}/unfollow`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${await spotifyApi.getAccessToken()}`,
+            },
+          }
+        )
       }
+    }
+
+    console.info('Creating a new queue playlist')
+    const queuePlaylist = await spotifyApi.playlists.createPlaylist(
+      spotifyUser.id,
+      {
+        name: `Play4Me • ${userPlaylist.title}`,
+        description: userPlaylist.description,
+        public: false,
+      }
+    )
+
+    if (queue) {
+      console.info('Updating queue with new playlist id')
+      const [updatedQueue] = await db
+        .update(playlistQueues)
+        .set({
+          queuePlaylistId: queuePlaylist.id,
+        })
+        .where(eq(playlistQueues.id, queue.id))
+        .returning()
+      queue = updatedQueue
+    } else {
+      console.info('Creating queue with new playlist id')
+      const [createdQueue] = await db
+        .insert(playlistQueues)
+        .values({
+          queuePlaylistId: queuePlaylist.id,
+          ownerId: authSession.user.id,
+        })
+        .returning()
+      queue = createdQueue
     }
 
     const [playSession] = await db
@@ -103,7 +118,8 @@ export async function POST(request: Request) {
     try {
       await startPlayback({
         playSession,
-        queue,
+        queuePlaylist,
+        userPlaylist,
       })
     } catch (e: unknown) {
       console.error('Error when starting playback, closing session...', e)
@@ -111,6 +127,7 @@ export async function POST(request: Request) {
         .update(playSessions)
         .set({ stoppedAt: new Date() })
         .where(eq(playSessions.id, playSession.id))
+      throw e
     }
 
     return Response.json(playSession)
@@ -119,20 +136,14 @@ export async function POST(request: Request) {
 
 async function startPlayback({
   playSession,
-  queue,
+  userPlaylist,
+  queuePlaylist,
 }: {
-  queue: PlaylistQueue
+  userPlaylist: Playlist
+  queuePlaylist: SpotifyPlaylist
   playSession: PlaySession
 }) {
   const spotifyApi = await getServerSpotifyApi({ userId: playSession.ownerId })
-
-  const queuePlaylist = await spotifyApi.playlists.getPlaylist(
-    queue.queuePlaylistId
-  )
-  const [userPlaylist] = await db
-    .select()
-    .from(playlists)
-    .where(eq(playlists.id, playSession.playlistId))
 
   if (queuePlaylist.tracks.total > 0) {
     await spotifyApi.playlists.removeItemsFromPlaylist(queuePlaylist.id, {
@@ -154,30 +165,20 @@ async function startPlayback({
     throw new Error('No tracks scheduled for playlist')
   }
 
-  const firstTrack = tracks[0]
-  console.info('Adding first tracks to playlist', {
+  console.info('Adding tracks to playlist', {
     sessionId: playSession.id,
+    tracksCount: tracks.length,
   })
 
-  // only add the 1st track before starting, to make sure its the one that gets to be played first
-  await spotifyApi.playlists.addItemsToPlaylist(queuePlaylist.id, [
-    firstTrack.uri,
-  ])
+  await spotifyApi.playlists.addItemsToPlaylist(
+    queuePlaylist.id,
+    tracks.map((track) => track.uri)
+  )
+
   await spotifyApi.player.startResumePlayback(
     playSession.deviceId,
     queuePlaylist.uri
   )
-  console.info('Started playback', { sessionId: playSession.id })
-
-  if (tracks.length > 1) {
-    console.info('Adding remaining tracks to playlist', {
-      sessionId: playSession.id,
-    })
-    await spotifyApi.playlists.addItemsToPlaylist(
-      queuePlaylist.id,
-      tracks.slice(1).map((track) => track.uri)
-    )
-  }
 
   console.info('Playlist queue updated ', {
     tracks: tracks.length,
