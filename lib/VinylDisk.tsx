@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Circle, Image, VStack } from '@expo/ui/swift-ui'
 import {
   foregroundStyle,
@@ -8,25 +8,43 @@ import {
   saturation,
   zIndex,
 } from '@expo/ui/swift-ui/modifiers'
+import { useTheme } from '@react-navigation/core'
+import { useColorScheme } from 'react-native'
 
 export type VinylState = 'paused' | 'pending' | 'playing'
 
 const VinyConst = {
   FPS: 60,
-  TEXT_SIZE: 28,
+  TEXT_SIZE: 34,
   CIRCLE_COUNT: 20,
+  COLORS: {
+    dark: [
+      'rgb(10, 10, 10)',
+      'rgb(35, 35, 35)',
+      'rgb(10, 10, 10)',
+      'rgb(35, 35, 35)',
+      'rgb(10, 10, 10)',
+    ],
+    light: [
+      'rgb(35, 35, 35)',
+      'rgb(100, 100, 100)',
+      'rgb(35, 35, 35)',
+      'rgb(100, 100, 100)',
+      'rgb(35, 35, 35)',
+    ],
+  },
 }
 
 export function VinylDisk({
-  color,
   size,
   state,
 }: {
-  color: string
   size: number
   state: VinylState
 }) {
   const [rotation, setRotation] = useState(0)
+  const colorScheme = useColorScheme()
+  const theme = useTheme()
 
   useEffect(() => {
     if (state !== 'playing') return
@@ -37,7 +55,7 @@ export function VinylDisk({
     return () => clearInterval(handler)
   }, [state])
 
-  const innerDiskSize = 0.4 * size
+  const innerDiskSize = useMemo(() => 0.4 * size, [size])
 
   return (
     <VStack modifiers={[padding({ top: size }), rotationEffect(rotation)]}>
@@ -60,13 +78,7 @@ export function VinylDisk({
                   : {
                       type: 'angularGradient',
                       center: { x: 0.5, y: 0.5 },
-                      colors: [
-                        'rgb(10, 10, 10)',
-                        'rgb(35,35,35)',
-                        'rgb(10, 10, 10)',
-                        'rgb(35,35,35)',
-                        'rgb(10, 10, 10)',
-                      ],
+                      colors: VinyConst.COLORS[colorScheme ?? 'light'],
                     }
               ),
               frame({ height: circleSize, width: circleSize }),
@@ -80,8 +92,8 @@ export function VinylDisk({
       })}
       <Circle
         modifiers={[
-          foregroundStyle({ color: color, type: 'color' }),
-          saturation(0.2),
+          foregroundStyle({ color: theme.colors.primary, type: 'color' }),
+          saturation(0.5),
           frame({ height: innerDiskSize, width: innerDiskSize }),
           padding({ top: -(size + innerDiskSize) / 2 }),
           zIndex(VinyConst.CIRCLE_COUNT + 1),
