@@ -56,11 +56,11 @@ export async function POST(request: Request) {
         queue.queuePlaylistId
       )
       if (existingQueuePlaylist) {
-        console.info('Playlist queue exists, unfollowing...', {
+        console.info('Playlist queue exists, deleting...', {
           playlistId: queue.queuePlaylistId,
         })
         await fetch(
-          `https://api.spotify.com/v1/playlists/${existingQueuePlaylist.id}/unfollow`,
+          `https://api.spotify.com/v1/playlists/${existingQueuePlaylist.id}`,
           {
             method: 'DELETE',
             headers: {
