@@ -8,8 +8,7 @@ import {
   playSessions,
 } from '@/db/schema/public'
 import { and, eq, isNull } from 'drizzle-orm'
-import { getServerSpotifyApi } from '@/lib/spotifyServer'
-import { deferTask } from 'expo-server'
+import { getServerSpotifyApi } from '@/lib/spotify/server'
 import { llmSearchTracks } from '@/lib/llmSearchTracks'
 import { Playlist, Track } from '@spotify/web-api-ts-sdk'
 
@@ -101,20 +100,18 @@ export async function POST(request: Request) {
       })
       .returning()
 
-    deferTask(async () => {
-      try {
-        await startPlayback({
-          playSession,
-          queue,
-        })
-      } catch (e: unknown) {
-        console.error('Error when starting playback, closing session...', e)
-        await db
-          .update(playSessions)
-          .set({ stoppedAt: new Date() })
-          .where(eq(playSessions.id, playSession.id))
-      }
-    })
+    try {
+      await startPlayback({
+        playSession,
+        queue,
+      })
+    } catch (e: unknown) {
+      console.error('Error when starting playback, closing session...', e)
+      await db
+        .update(playSessions)
+        .set({ stoppedAt: new Date() })
+        .where(eq(playSessions.id, playSession.id))
+    }
 
     return Response.json(playSession)
   })

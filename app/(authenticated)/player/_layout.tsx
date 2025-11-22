@@ -1,15 +1,12 @@
 import { Stack } from 'expo-router'
-import { useRefreshOnFocus } from '@/lib/useRefreshOnFocus'
 
-export default function HomeLayout() {
-  useRefreshOnFocus()
-
+export default function PlayerLayout() {
   return (
     <Stack>
       <Stack.Screen
         name="index"
         options={{
-          headerTitle: 'Play4Me',
+          title: 'Player',
           headerTintColor: 'foreground',
           headerTransparent: true,
           headerLargeTitle: true,

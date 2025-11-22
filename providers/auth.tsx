@@ -63,7 +63,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch data at ${options?.method ?? 'GET'} ${path} (${response.status}): ${response.statusText}`
+          `Failed to fetch data at ${options?.method ?? 'GET'} ${path} (${response.status}): ${await response.text()}`
         )
       }
 

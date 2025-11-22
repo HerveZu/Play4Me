@@ -21,13 +21,13 @@ function Tabs() {
 
   return (
     <NativeTabs>
-      <NativeTabs.Trigger name="home" hidden={!playlists?.length}>
-        <Label>Play4Me</Label>
+      <NativeTabs.Trigger name="playlists" hidden={!playlists?.length}>
+        <Label>Playlists</Label>
         <Icon sf="music.note.list" drawable="custom_android_drawable" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="new-playlist">
-        <Icon sf="sparkles" />
-        <Label>Create</Label>
+      <NativeTabs.Trigger name="player">
+        <Icon sf="speaker.2" />
+        <Label>Player</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings" role={'search'}>
         <Icon sf="powerplug" />

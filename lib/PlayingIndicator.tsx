@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { Animated, Easing, StyleSheet, View } from 'react-native'
 import { useTheme } from '@react-navigation/core'
+import { HStack } from '@expo/ui/swift-ui'
+import { frame } from '@expo/ui/swift-ui/modifiers'
 
 const BAR_MAX_HEIGHT = 20
 const BAR_MIN_SCALE = 0.2
@@ -70,16 +72,19 @@ const AnimatedBar = ({ delay = 500 }) => {
 
 export const PlayingIndicator = () => {
   return (
-    <View style={styles.container}>
-      <AnimatedBar delay={0} />
-      <AnimatedBar delay={200} />
-      <AnimatedBar delay={400} />
-    </View>
+    <HStack modifiers={[frame({ width: 25, height: 25 })]}>
+      <View style={styles.container}>
+        <AnimatedBar delay={0} />
+        <AnimatedBar delay={200} />
+        <AnimatedBar delay={400} />
+      </View>
+    </HStack>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
     height: BAR_MAX_HEIGHT,

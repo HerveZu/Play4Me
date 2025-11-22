@@ -15,7 +15,7 @@ export default function SocialSignIn() {
   }
 
   useEffect(() => {
-    data && router.replace('/home')
+    data && router.replace('/player')
   }, [router, data])
 
   return (
