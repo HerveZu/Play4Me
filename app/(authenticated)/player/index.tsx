@@ -31,7 +31,8 @@ export default function NewPlaylistPage() {
     () =>
       playlists.find((playlist) => playlist.id === playlistId) ??
       playlists.find((playlist) => playlist.active) ??
-      playlists[0],
+      playlists[0] ??
+      null,
     [playlists, playlistId]
   )
 

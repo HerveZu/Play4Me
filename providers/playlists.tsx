@@ -6,6 +6,7 @@ import { StopPlaylistInput } from '@/app/(authenticated)/api/playlist/stop+api'
 import { StartPlaylistInput } from '@/app/(authenticated)/api/playlist/start+api'
 import { UserPlaylist } from '@/app/(authenticated)/api/playlist/index+api'
 import { SplashScreen } from 'expo-router'
+import { milliseconds } from 'date-fns'
 
 export function usePlaylists(): PlaylistsContextType {
   const context = useContext(PlaylistsContext)
@@ -33,6 +34,7 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
     refetch,
     isLoading,
   } = useQuery({
+    refetchInterval: milliseconds({ seconds: 30 }),
     queryKey: ['playlists'],
     queryFn: async () => await fetch<UserPlaylist[]>('/api/playlist'),
   })
