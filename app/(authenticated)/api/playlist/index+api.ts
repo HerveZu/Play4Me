@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       .leftJoin(playSessions, eq(playlists.id, playSessions.playlistId))
       .where(eq(playlists.ownerId, session.user.id))
       .groupBy(playlists.id)
-      .orderBy(playlists.title, desc(max(playSessions.startedAt)))
+      .orderBy(desc(max(playSessions.startedAt)))
 
     return Response.json(userPlaylists as UserPlaylist[])
   })
