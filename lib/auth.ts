@@ -54,15 +54,27 @@ export async function withSession(
   request: Request,
   handler: (session: AuthSession) => Promise<Response>
 ) {
+  const authResult = await ensureAuthenticated(request)
+
+  return authResult.success ? handler(authResult.session) : authResult.response
+}
+
+export async function ensureAuthenticated(
+  request: Request
+): Promise<
+  | { success: true; session: AuthSession }
+  | { success: false; response: Response }
+> {
   const session = await auth.api.getSession({
     headers: request.headers,
   })
 
   if (!session) {
-    return new Response('Unauthorized', { status: 401 })
+    return {
+      success: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    }
   }
 
-  // todo: RLS, authenticated user
-
-  return handler(session)
+  return { success: true, session }
 }
