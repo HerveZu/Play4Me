@@ -21,7 +21,6 @@ import { frame, padding } from '@expo/ui/swift-ui/modifiers'
 import { useQuery } from '@tanstack/react-query'
 import { getClientSpotifyApi } from '@/lib/spotify/client'
 import { useWindowDimensions } from 'react-native'
-import { SFSymbols6_0 } from 'sf-symbols-typescript'
 
 export default function HomePage() {
   const { playlists, deletePlaylist, editPlaylist } = usePlaylists()
@@ -194,21 +193,6 @@ function PlaylistPreview({ playlist }: { playlist: UserPlaylist }) {
   })
   const { width } = useWindowDimensions()
 
-  const settings: { icon: SFSymbols6_0; label: string; active: boolean }[] = [
-    {
-      icon: 'heart',
-      label: 'Use preferences',
-      active: !!playlist.settings.usePreferences,
-    },
-    {
-      icon: 'eyeglasses.slash',
-      label: "Don't repeat from history",
-      active: !!playlist.settings.dontRepeatFromHistory,
-    },
-  ]
-
-  const activeSettings = settings.filter((setting) => setting.active)
-
   return (
     <VStack modifiers={[frame({ width: width })]} alignment={'leading'}>
       <VStack modifiers={[padding({ all: 20 })]} spacing={40}>
@@ -216,24 +200,9 @@ function PlaylistPreview({ playlist }: { playlist: UserPlaylist }) {
           <Text weight={'semibold'} size={18}>
             {playlist.title}
           </Text>
-          <Text color={'secondary'}>{playlist.description}</Text>
+          <Text>{playlist.description}</Text>
         </VStack>
 
-        {activeSettings.length > 0 && (
-          <VStack spacing={5} alignment={'leading'}>
-            {activeSettings.map((setting, i) => (
-              <HStack key={i} spacing={20}>
-                <VStack
-                  alignment={'leading'}
-                  modifiers={[frame({ width: 20 })]}
-                >
-                  <Image size={18} systemName={setting.icon} />
-                </VStack>
-                <Text>{setting.label}</Text>
-              </HStack>
-            ))}
-          </VStack>
-        )}
         {data?.device && (
           <HStack spacing={10}>
             <Spacer />
