@@ -5,3 +5,7 @@ export function makeUrl(path: string) {
     ? `${API_URL.replace(/\/+$/, '')}/${path.replace(/^\//, '')}`
     : path
 }
+
+export function capitalizeFirstLetter(val: string) {
+  return String(val).charAt(0).toUpperCase() + String(val).slice(1)
+}

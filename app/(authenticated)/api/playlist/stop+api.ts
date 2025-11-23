@@ -2,14 +2,14 @@ import { withSession } from '@/lib/auth'
 import { db } from '@/db'
 import { playlistQueues, playSessions } from '@/db/schema/public'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { getServerSpotifyApi } from '@/lib/spotifyServer'
+import { getServerSpotifyApi } from '@/lib/spotify/server'
 
 export type StopPlaylistInput = {
   playlistId: string
 }
 
 export async function POST(request: Request) {
-  return await withSession(request, async (authSessino) => {
+  return await withSession(request, async (authSession) => {
     const input = (await request.json()) as StopPlaylistInput
     const activeSessions = await db
       .select()
@@ -17,33 +17,28 @@ export async function POST(request: Request) {
       .innerJoin(playlistQueues, eq(playSessions.queueId, playlistQueues.id))
       .where(
         and(
-          eq(playSessions.ownerId, authSessino.user.id),
+          eq(playSessions.ownerId, authSession.user.id),
           eq(playSessions.playlistId, input.playlistId),
           isNull(playSessions.stoppedAt)
         )
       )
 
-    if (!activeSessions.length) {
-      return new Response('No active session', {
-        status: 404,
-      })
-    }
-
     const sessionIds = activeSessions.map((s) => s.play_sessions.id)
-    const deviceIds = [
-      ...new Set(activeSessions.map((s) => s.play_sessions.deviceId)),
-    ]
-
-    console.info('Stopping playback on devices: ', { sessionIds, deviceIds })
 
     try {
       const spotifyApi = await getServerSpotifyApi({
-        userId: authSessino.user.id,
+        userId: authSession.user.id,
       })
 
-      await Promise.all(
-        deviceIds.map((deviceId) => spotifyApi.player.pausePlayback(deviceId))
-      )
+      const playbackState = await spotifyApi.player.getPlaybackState()
+
+      if (playbackState?.is_playing && playbackState.device.id) {
+        console.info('Stopping playback on devices: ', {
+          sessionIds,
+          deviceId: playbackState.device.id,
+        })
+        await spotifyApi.player.pausePlayback(playbackState.device.id)
+      }
     } finally {
       await db
         .update(playSessions)

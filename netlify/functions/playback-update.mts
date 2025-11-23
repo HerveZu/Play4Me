@@ -9,7 +9,7 @@ import {
   playSessions,
 } from '../../db/schema/public'
 import { llmSearchTracks } from '../../lib/llmSearchTracks'
-import { getServerSpotifyApi } from '../../lib/spotifyServer'
+import { getServerSpotifyApi } from '../../lib/spotify/server'
 
 export default async () => {
   const activeSessions = await db
@@ -48,9 +48,11 @@ async function updatePlayback({
     spotifyApi.player.getCurrentlyPlayingTrack(),
   ])
 
-  const playingItemFromQueue = currentlyPlaying && queuePlaylist.tracks.items
-    .map((item, position) => ({ ...item, position }))
-    .find((item) => item.track.uri === currentlyPlaying.item.uri)
+  const playingItemFromQueue =
+    currentlyPlaying &&
+    queuePlaylist.tracks.items
+      .map((item, position) => ({ ...item, position }))
+      .find((item) => item.track.uri === currentlyPlaying.item.uri)
 
   if (!playingItemFromQueue) {
     console.info(

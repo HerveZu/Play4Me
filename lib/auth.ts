@@ -17,6 +17,7 @@ export const auth = betterAuth({
       clientId: SPOTIFY.clientId,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
       scope: [
+        'user-top-read',
         'user-read-playback-state',
         'user-modify-playback-state',
         'user-read-recently-played',

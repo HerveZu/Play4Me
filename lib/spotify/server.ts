@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { getSpotifyApi } from '@/lib/spotify'
+import { getSpotifyApi } from '@/lib/spotify/index'
 import { SpotifyApi } from '@spotify/web-api-ts-sdk'
 
 export async function getServerSpotifyApi({

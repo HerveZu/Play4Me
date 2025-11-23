@@ -1,39 +1,33 @@
 import { authClient } from '@/providers/auth'
-import { Button, Host } from '@expo/ui/swift-ui'
+import { Button, Host, Text, VStack } from '@expo/ui/swift-ui'
 import { useEffect } from 'react'
 import { useRouter } from 'expo-router'
-import { ActivityIndicator, View } from 'react-native'
 
 export default function SocialSignIn() {
-  const session = authClient.useSession()
   const router = useRouter()
-
-  useEffect(() => {
-    session.data && router.replace('/home')
-  }, [router, session])
+  const { data } = authClient.useSession()
 
   const handleLogin = async () => {
     await authClient.signIn.social({
       provider: 'spotify',
-      callbackURL: '/success',
+      callbackURL: '/',
     })
   }
+
+  // the redirection occurs on a web popup
+  // thus we need to redirect manually on native
+  useEffect(() => {
+    data && router.push('/')
+  }, [data, router])
+
   return (
     <Host style={{ flex: 1 }}>
-      {session.isPending ? (
-        <View
-          style={{
-            flex: 1,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          <ActivityIndicator />
-        </View>
-      ) : (
-        <Button onPress={handleLogin}>Login with Spotify</Button>
-      )}
+      <VStack spacing={48}>
+        <Text size={24}>Welcome to Play4Me!</Text>
+        <Button onPress={handleLogin} variant={'glassProminent'}>
+          Login with Spotify
+        </Button>
+      </VStack>
     </Host>
   )
 }

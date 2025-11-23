@@ -1,9 +1,8 @@
 import { createContext, PropsWithChildren, useContext, useMemo } from 'react'
 import { Device } from '@spotify/web-api-ts-sdk'
 import { useStorageState } from '@/lib/useStorageState'
-import { getSpotifyApi } from '@/lib/spotify'
 import { useQuery } from '@tanstack/react-query'
-import { authClient } from '@/providers/auth'
+import { getClientSpotifyApi } from '@/lib/spotify/client'
 
 export function usePlayback(): PlaybackContextType {
   const context = useContext(PlaybackContext)
@@ -34,24 +33,7 @@ export function PlaybackProvider({ children }: PropsWithChildren) {
   const { data: devices } = useQuery({
     queryKey: ['devices', playbackSettings.playbackDeviceId],
     queryFn: async () => {
-      const accessTokenResult = await authClient.getAccessToken({
-        providerId: 'spotify',
-      })
-
-      if (accessTokenResult.error) {
-        throw new Error(
-          `Failed to get access token: ${accessTokenResult.error.message}`
-        )
-      }
-
-      const {
-        data: { accessToken, accessTokenExpiresAt },
-      } = accessTokenResult
-
-      const spotifyApi = getSpotifyApi({
-        accessToken,
-        expiresAt: accessTokenExpiresAt!,
-      })
+      const spotifyApi = await getClientSpotifyApi()
       return await spotifyApi.player.getAvailableDevices()
     },
   })

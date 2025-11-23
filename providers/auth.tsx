@@ -12,6 +12,8 @@ import { AuthSession } from '@/lib/auth'
 import { HTTPMethod } from 'better-call'
 import { makeUrl } from '@/lib/utils'
 
+export * as SplashScreen from 'expo-splash-screen'
+
 export const authClient = createAuthClient({
   baseURL: makeUrl('/api/auth'),
   plugins: [
@@ -41,7 +43,7 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const { data } = authClient.useSession()
+  const { data, isPending } = authClient.useSession()
 
   const authFetch = useCallback(
     async <Response,>(path: string, options?: FetchOptions) => {
@@ -60,7 +62,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch data at ${options?.method ?? 'GET'} ${path} (${response.status}): ${response.statusText}`
+          `Failed to fetch data at ${options?.method ?? 'GET'} ${path} (${response.status}): ${await response.text()}`
         )
       }
 
@@ -72,6 +74,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     },
     []
   )
+
+  if (isPending) {
+    return null
+  }
 
   return data ? (
     <AuthContext.Provider value={{ fetch: authFetch, ...data }}>
