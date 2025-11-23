@@ -11,6 +11,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { getServerSpotifyApi } from '@/lib/spotify/server'
 import { llmSearchTracks } from '@/lib/llmSearchTracks'
 import { Playlist as SpotifyPlaylist } from '@spotify/web-api-ts-sdk'
+import { unfollowPlaylist } from '@/lib/spotify'
 
 export type StartPlaylistInput = {
   playlistId: string
@@ -59,16 +60,9 @@ export async function POST(request: Request) {
         console.info('Playlist queue exists, deleting...', {
           playlistId: queue.queuePlaylistId,
         })
-        await fetch(
-          `https://api.spotify.com/v1/playlists/${existingQueuePlaylist.id}`,
-          {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${await spotifyApi.getAccessToken()}`,
-            },
-          }
-        )
+
+        // unfollowing the playlist will delete it
+        await unfollowPlaylist(spotifyApi, existingQueuePlaylist.id)
       }
     }
 
