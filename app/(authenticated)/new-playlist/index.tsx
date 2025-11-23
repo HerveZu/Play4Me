@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Button,
   Form,
   Host,
   HStack,
@@ -13,6 +12,7 @@ import {
 import { usePlaylists } from '@/providers/playlists'
 import { useNavigation, useRouter } from 'expo-router'
 import { useMutation } from '@tanstack/react-query'
+import { HeaderButton } from '@/lib/HeaderButton'
 
 export default function NewPlaylistPage() {
   const [playlistName, setPlaylistName] = useState('')
@@ -39,14 +39,11 @@ export default function NewPlaylistPage() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Host matchContents>
-          <Button
-            disabled={disabled}
-            variant={'glass'}
-            systemImage={'checkmark'}
-            onPress={handleCreatePlaylist}
-          />
-        </Host>
+        <HeaderButton
+          disabled={disabled}
+          sfSymbol={'checkmark'}
+          onPress={() => handleCreatePlaylist()}
+        />
       ),
     })
   }, [disabled, handleCreatePlaylist, navigation])

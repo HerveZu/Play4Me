@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router'
 import { useRefreshOnFocus } from '@/lib/useRefreshOnFocus'
-import { Button, Host } from '@expo/ui/swift-ui'
+import { HeaderButton } from '@/lib/HeaderButton'
 
 export default function PlaylistsLayout() {
   useRefreshOnFocus()
@@ -16,13 +16,10 @@ export default function PlaylistsLayout() {
           headerTransparent: true,
           headerLargeTitle: true,
           headerRight: () => (
-            <Host matchContents>
-              <Button
-                variant={'glass'}
-                systemImage={'plus'}
-                onPress={() => router.push('/new-playlist')}
-              />
-            </Host>
+            <HeaderButton
+              sfSymbol={'plus'}
+              onPress={() => router.push('/new-playlist')}
+            />
           ),
         }}
       />
