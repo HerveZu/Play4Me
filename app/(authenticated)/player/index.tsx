@@ -57,8 +57,14 @@ export default function NewPlaylistPage() {
   }, [isActive])
 
   const { mutateAsync: controlPlaylist } = useMutation({
-    mutationKey: ['control-playlist', state, defaultPlaybackDevice],
-    mutationFn: async ({ playlistId }: { playlistId: string }) => {
+    mutationKey: ['control-playlist', state],
+    mutationFn: async ({
+      playlistId,
+      deviceId,
+    }: {
+      playlistId: string
+      deviceId: string
+    }) => {
       setState('pending')
 
       try {
@@ -66,7 +72,7 @@ export default function NewPlaylistPage() {
           case 'paused':
             await start({
               playlistId,
-              deviceId: defaultPlaybackDevice?.id ?? '',
+              deviceId,
             })
             return
           case 'playing':
@@ -88,7 +94,11 @@ export default function NewPlaylistPage() {
           <HStack
             onPress={() =>
               state !== 'pending' &&
-              controlPlaylist({ playlistId: playlist.id })
+              defaultPlaybackDevice?.id &&
+              controlPlaylist({
+                playlistId: playlist.id,
+                deviceId: defaultPlaybackDevice.id,
+              })
             }
           >
             <Spacer />
@@ -99,14 +109,18 @@ export default function NewPlaylistPage() {
             {state === 'pending' && <CircularProgress />}
             <HStack spacing={10}>
               <Spacer />
-              <Text>
-                {state === 'playing' ? `Tap to pause` : `Tap to play`}
-              </Text>
-              <Image systemName={'circle.fill'} size={5} />
-              {defaultPlaybackDevice && (
-                <Text weight={'light'} lineLimit={1}>
-                  {defaultPlaybackDevice.name}
-                </Text>
+              {defaultPlaybackDevice ? (
+                <>
+                  <Text>
+                    {state === 'playing' ? `Tap to pause` : `Tap to play`}
+                  </Text>
+                  <Image systemName={'circle.fill'} size={5} />
+                  <Text weight={'light'} lineLimit={1}>
+                    {defaultPlaybackDevice.name}
+                  </Text>
+                </>
+              ) : (
+                <Text>No active device</Text>
               )}
               <Spacer />
             </HStack>
