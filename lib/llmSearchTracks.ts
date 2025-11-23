@@ -87,6 +87,9 @@ ${JSON.stringify(
     name: artist.name,
   }))
 )}
+
+**Other information**
+Current Time: ${new Date().toLocaleTimeString()}
 `
 
   const chatCompletion = await groq.chat.completions.create({
