@@ -42,6 +42,19 @@ export default function HomePage() {
   return (
     <Host style={{ flex: 1 }}>
       <Form>
+        {playlistsPerDay.length === 0 && (
+          <Section>
+            <HStack>
+              <Text weight={'semibold'}>Create your first playlist!</Text>
+              <Spacer />
+              <Button
+                systemImage={'chevron.right'}
+                variant={'glass'}
+                onPress={() => router.push('/new-playlist')}
+              />
+            </HStack>
+          </Section>
+        )}
         {playlistsPerDay.map(([day, playlists]) => (
           <Section
             key={day.toString()}
@@ -69,7 +82,7 @@ export default function HomePage() {
 
                 <ContextMenu>
                   <ContextMenu.Trigger>
-                    <Image systemName={'chevron.right'} />
+                    <Button systemImage={'chevron.right'} variant={'glass'} />
                   </ContextMenu.Trigger>
                   <ContextMenu.Items>
                     <Button
