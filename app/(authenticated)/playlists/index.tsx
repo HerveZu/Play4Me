@@ -1,4 +1,6 @@
 import {
+  Button,
+  ContextMenu,
   Form,
   Host,
   HStack,
@@ -14,9 +16,10 @@ import { useMemo } from 'react'
 import { UserPlaylist } from '@/app/(authenticated)/api/playlist/index+api'
 import { formatRelative, startOfDay } from 'date-fns'
 import { capitalizeFirstLetter } from '@/lib/utils'
+import { PlayingIndicator } from '@/lib/PlayingIndicator'
 
 export default function HomePage() {
-  const { playlists } = usePlaylists()
+  const { playlists, deletePlaylist } = usePlaylists()
   const router = useRouter()
 
   const playlistsPerDay = useMemo(() => {
@@ -53,13 +56,41 @@ export default function HomePage() {
               >
                 <VStack alignment={'leading'} spacing={10}>
                   <HStack spacing={10}>
-                    <Image systemName={'music.note'} size={18} />
+                    {playlist.active ? (
+                      <PlayingIndicator />
+                    ) : (
+                      <Image systemName={'music.note'} size={18} />
+                    )}
                     <Text weight={'semibold'}>{playlist.title}</Text>
                   </HStack>
                   <Text weight={'light'}>{playlist.description}</Text>
                 </VStack>
                 <Spacer />
-                <Image systemName={'chevron.right'} />
+
+                <ContextMenu>
+                  <ContextMenu.Trigger>
+                    <Image systemName={'chevron.right'} />
+                  </ContextMenu.Trigger>
+                  <ContextMenu.Items>
+                    <Button
+                      systemImage={'play'}
+                      onPress={() =>
+                        router.push(`/player?playlistId=${playlist.id}`)
+                      }
+                    >
+                      Play
+                    </Button>
+                    <Button
+                      role={'destructive'}
+                      systemImage={'trash'}
+                      onPress={() =>
+                        deletePlaylist({ playlistId: playlist.id })
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </ContextMenu.Items>
+                </ContextMenu>
               </HStack>
             ))}
           </Section>

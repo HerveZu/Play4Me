@@ -7,6 +7,8 @@ import { StartPlaylistInput } from '@/app/(authenticated)/api/playlist/start+api
 import { UserPlaylist } from '@/app/(authenticated)/api/playlist/index+api'
 import { SplashScreen } from 'expo-router'
 import { milliseconds } from 'date-fns'
+import { DeletePlaylistInput } from '@/app/(authenticated)/api/playlist/delete+api'
+import { EditPlaylistInput } from '@/app/(authenticated)/api/playlist/edit+api'
 
 export function usePlaylists(): PlaylistsContextType {
   const context = useContext(PlaylistsContext)
@@ -22,6 +24,8 @@ type PlaylistsContextType = {
   playlists: UserPlaylist[]
   start: (input: StartPlaylistInput) => Promise<void>
   stop: (input: StopPlaylistInput) => Promise<void>
+  deletePlaylist: (input: DeletePlaylistInput) => Promise<void>
+  editPlaylist: (input: EditPlaylistInput) => Promise<UserPlaylist>
   createPlaylist: (input: CreatePlaylistInput) => Promise<UserPlaylist>
 }
 const PlaylistsContext = createContext<PlaylistsContextType | null>(null)
@@ -44,6 +48,25 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
       await fetch<UserPlaylist>('/api/playlist/create', {
         method: 'POST',
         body: JSON.stringify(playlist),
+      }),
+    onSuccess: () => refetch(),
+  })
+
+  const { mutateAsync: deletePlaylist } = useMutation({
+    mutationFn: async (input: DeletePlaylistInput) => {
+      await fetch('/api/playlist/delete', {
+        method: 'DELETE',
+        body: JSON.stringify(input),
+      })
+    },
+    onSuccess: () => refetch(),
+  })
+
+  const { mutateAsync: editPlaylist } = useMutation({
+    mutationFn: async (input: EditPlaylistInput) =>
+      await fetch<UserPlaylist>('/api/playlist/edit', {
+        method: 'PUT',
+        body: JSON.stringify(input),
       }),
     onSuccess: () => refetch(),
   })
@@ -79,6 +102,8 @@ export function PlaylistsProvider({ children }: PropsWithChildren) {
         start,
         stop,
         playlists,
+        deletePlaylist,
+        editPlaylist,
       }}
     >
       {children}
