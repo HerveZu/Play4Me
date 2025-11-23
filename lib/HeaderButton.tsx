@@ -12,8 +12,12 @@ export function HeaderButton({
   sfSymbol,
   style,
   disabled,
+  noCenter: noPadding,
   ...props
-}: { sfSymbol: SFSymbols6_0 } & Omit<TouchableOpacityProps, 'children'>) {
+}: { sfSymbol: SFSymbols6_0; noCenter?: boolean } & Omit<
+  TouchableOpacityProps,
+  'children'
+>) {
   const theme = useTheme()
   const colorScheme = useColorScheme()
 
@@ -23,7 +27,7 @@ export function HeaderButton({
       style={[
         {
           display: 'flex',
-          marginLeft: 5, // not aligned by default (liquid glass?)
+          padding: noPadding ? 0 : 6, // not aligned by default (liquid glass?)
         },
         style,
       ]}

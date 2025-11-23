@@ -1,12 +1,13 @@
 import { withSession } from '@/lib/auth'
 import { db } from '@/db'
-import { Playlist, playlists } from '@/db/schema/public'
+import { Playlist, playlists, PlaylistSettings } from '@/db/schema/public'
 import { and, eq } from 'drizzle-orm'
 
 export type EditPlaylistInput = {
   title: string
   description: string
   playlistId: string
+  settings: PlaylistSettings
 }
 
 export async function PUT(request: Request) {
@@ -17,6 +18,7 @@ export async function PUT(request: Request) {
       .set({
         title: input.title,
         description: input.description,
+        settings: input.settings,
       })
       .where(
         and(

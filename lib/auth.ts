@@ -5,6 +5,8 @@ import { db } from '@/db'
 import * as authSchema from '@/db/schema/auth'
 import { authClient } from '@/providers/auth'
 import { SPOTIFY } from '@/lib/spotify'
+import { playlists } from '@/db/schema/public'
+import { DEFAULT_PLAYLIST } from '@/lib/defaults'
 
 export type AuthSession = NonNullable<
   ReturnType<typeof authClient.useSession>['data']
@@ -24,6 +26,20 @@ export const auth = betterAuth({
         'playlist-read-private',
         'playlist-modify-private',
       ],
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          await db.insert(playlists).values({
+            title: DEFAULT_PLAYLIST.title,
+            description: DEFAULT_PLAYLIST.description,
+            ownerId: user.id,
+            settings: DEFAULT_PLAYLIST.settings,
+          })
+        },
+      },
     },
   },
   database: drizzleAdapter(db, {

@@ -44,9 +44,18 @@ export async function llmSearchTracks({
   queuePlaylist: SpotifyPlaylist
   spotifyApi: SpotifyApi
 }) {
+  console.info('Searching tracks for playlist', {
+    playlistId: userPlaylist.id,
+    settings: userPlaylist.settings,
+  })
+
   const [playerHistory, topArtists] = await Promise.all([
-    spotifyApi.player.getRecentlyPlayedTracks(50),
-    spotifyApi.currentUser.topItems('artists', 'medium_term', 50),
+    userPlaylist?.settings.dontRepeatFromHistory
+      ? spotifyApi.player.getRecentlyPlayedTracks(50)
+      : { items: [] },
+    userPlaylist?.settings.usePreferences
+      ? spotifyApi.currentUser.topItems('artists', 'medium_term', 50)
+      : { items: [] },
   ])
 
   const historyItems: HistoryItem[] = [

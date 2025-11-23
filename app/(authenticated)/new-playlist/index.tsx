@@ -1,41 +1,49 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Form,
-  Host,
-  HStack,
-  Image,
-  Section,
-  Text,
-  TextField,
-  VStack,
-} from '@expo/ui/swift-ui'
+import { Form, Host, Section, Switch, TextField } from '@expo/ui/swift-ui'
 import { usePlaylists } from '@/providers/playlists'
 import { useNavigation, useRouter } from 'expo-router'
 import { useMutation } from '@tanstack/react-query'
 import { HeaderButton } from '@/lib/HeaderButton'
+import { frame } from '@expo/ui/swift-ui/modifiers'
+import { z } from 'zod'
+
+const CreatePlaylistInputSchema = z.object({
+  title: z.string().min(3),
+  description: z.string().min(10),
+  settings: z.object({
+    usePreferences: z.boolean().optional(),
+    dontRepeatFromHistory: z.boolean().optional(),
+  }),
+})
 
 export default function NewPlaylistPage() {
-  const [playlistName, setPlaylistName] = useState('')
-  const [description, setDescription] = useState('')
+  const [playlistDetails, setPlaylistDetails] = useState({
+    title: '',
+    description: '',
+    settings: {
+      usePreferences: true,
+      dontRepeatFromHistory: true,
+    },
+  })
   const router = useRouter()
   const navigation = useNavigation()
 
   const { createPlaylist } = usePlaylists()
 
   const { mutate: handleCreatePlaylist, isPending } = useMutation({
+    mutationKey: ['create-playlist', playlistDetails],
     mutationFn: async () => {
-      const playlist = await createPlaylist({
-        title: playlistName,
-        description,
-      })
+      const playlist = await createPlaylist(playlistDetails)
       router.push(`/player?playlistId=${playlist.id}`)
     },
   })
 
   const disabled = useMemo(
-    () => isPending || !playlistName || !description,
-    [isPending, playlistName, description]
+    () =>
+      isPending || !!CreatePlaylistInputSchema.safeParse(playlistDetails).error,
+    [isPending, playlistDetails]
   )
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -52,28 +60,47 @@ export default function NewPlaylistPage() {
     <Host style={{ flex: 1 }}>
       <Form>
         <Section>
-          <HStack spacing={10}>
-            <Image systemName={'info.circle'} size={18} />
-            <VStack alignment={'leading'} spacing={4}>
-              <Text weight={'light'}>
-                Songs will be automatically added as the playlist runs. Your
-                music preference and playback history will be taken into
-                account.
-              </Text>
-            </VStack>
-          </HStack>
+          <TextField
+            placeholder="Title"
+            defaultValue={playlistDetails.title}
+            onChangeText={(title) =>
+              setPlaylistDetails((playlist) => ({ ...playlist, title }))
+            }
+          />
         </Section>
 
-        <Section title={'Playlist details'}>
+        <Section title="Describe what'd you like to listen to">
           <TextField
-            placeholder="Playlist name"
-            defaultValue={'My Playlist'}
-            onChangeText={setPlaylistName}
-          />
-          <TextField
-            placeholder={'Cool music for a good mood :)'}
-            onChangeText={setDescription}
+            placeholder={' '} // Empty strings break it
+            defaultValue={playlistDetails.description}
+            onChangeText={(description) =>
+              setPlaylistDetails((playlist) => ({ ...playlist, description }))
+            }
             multiline
+            modifiers={[frame({ minHeight: 100 })]}
+          />
+        </Section>
+
+        <Section title={'Music selection'}>
+          <Switch
+            value={playlistDetails.settings.usePreferences}
+            onValueChange={(usePreferences) =>
+              setPlaylistDetails((playlist) => ({
+                ...playlist,
+                usePreferences,
+              }))
+            }
+            label={'Use my preferences'}
+          />
+          <Switch
+            value={playlistDetails.settings.dontRepeatFromHistory}
+            onValueChange={(dontRepeatFromHistory) =>
+              setPlaylistDetails((playlist) => ({
+                ...playlist,
+                dontRepeatFromHistory,
+              }))
+            }
+            label="Don't repeat from history"
           />
         </Section>
       </Form>

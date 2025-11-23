@@ -22,6 +22,13 @@
       "when": 1763330466013,
       "tag": "0002_play-sessions-delete-cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1763901939623,
+      "tag": "0003_playlist-settings",
+      "breakpoints": true
     }
   ]
 }

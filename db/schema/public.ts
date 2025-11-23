@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { users } from '@/db/schema/auth'
 import * as betterAuthSchema from './auth'
 
@@ -34,9 +34,14 @@ export const playlists = pgTable('playlists', {
     .notNull()
     .references(() => users.id),
   title: text('title').notNull(),
+  settings: jsonb('settings').notNull().default('{}').$type<PlaylistSettings>(),
   description: text('description').notNull(),
 })
 
+export type PlaylistSettings = Partial<{
+  usePreferences: boolean
+  dontRepeatFromHistory: boolean
+}>
 export type Playlist = typeof playlists.$inferSelect
 export type PlaySession = typeof playSessions.$inferSelect
 export type PlaylistQueue = typeof playlistQueues.$inferSelect

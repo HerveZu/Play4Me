@@ -1,10 +1,11 @@
 import { withSession } from '@/lib/auth'
 import { db } from '@/db'
-import { Playlist, playlists } from '@/db/schema/public'
+import { Playlist, playlists, PlaylistSettings } from '@/db/schema/public'
 
 export type CreatePlaylistInput = {
   title: string
   description: string
+  settings: PlaylistSettings
 }
 
 export async function POST(request: Request) {
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
         title: input.title,
         description: input.description,
         ownerId: session.user.id,
+        settings: input.settings,
       })
       .returning()
 

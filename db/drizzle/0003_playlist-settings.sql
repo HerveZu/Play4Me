@@ -1,0 +1,1 @@
+ALTER TABLE "playlists" ADD COLUMN "settings" jsonb DEFAULT '{}' NOT NULL;

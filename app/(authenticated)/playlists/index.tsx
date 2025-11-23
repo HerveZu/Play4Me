@@ -21,9 +21,10 @@ import { frame, padding } from '@expo/ui/swift-ui/modifiers'
 import { useQuery } from '@tanstack/react-query'
 import { getClientSpotifyApi } from '@/lib/spotify/client'
 import { useWindowDimensions } from 'react-native'
+import { SFSymbols6_0 } from 'sf-symbols-typescript'
 
 export default function HomePage() {
-  const { playlists, deletePlaylist } = usePlaylists()
+  const { playlists, deletePlaylist, editPlaylist } = usePlaylists()
   const router = useRouter()
 
   const playlistsPerDay = useMemo(() => {
@@ -96,6 +97,47 @@ export default function HomePage() {
                     Player
                   </Button>
                   <Button
+                    systemImage={
+                      playlist.settings.usePreferences ? 'heart.slash' : 'heart'
+                    }
+                    onPress={() =>
+                      editPlaylist({
+                        ...playlist,
+                        playlistId: playlist.id,
+                        settings: {
+                          ...playlist.settings,
+                          usePreferences: !playlist.settings.usePreferences,
+                        },
+                      })
+                    }
+                  >
+                    {playlist.settings.usePreferences
+                      ? 'Without preferences'
+                      : 'Use preferences'}
+                  </Button>
+                  <Button
+                    systemImage={
+                      playlist.settings.dontRepeatFromHistory
+                        ? 'eyeglasses'
+                        : 'eyeglasses.slash'
+                    }
+                    onPress={() =>
+                      editPlaylist({
+                        ...playlist,
+                        playlistId: playlist.id,
+                        settings: {
+                          ...playlist.settings,
+                          dontRepeatFromHistory:
+                            !playlist.settings.dontRepeatFromHistory,
+                        },
+                      })
+                    }
+                  >
+                    {playlist.settings.dontRepeatFromHistory
+                      ? 'Allow history repeat'
+                      : "Don't repeat from history"}
+                  </Button>
+                  <Button
                     role={'destructive'}
                     systemImage={'trash'}
                     onPress={() => deletePlaylist({ playlistId: playlist.id })}
@@ -115,13 +157,24 @@ export default function HomePage() {
 function PlaylistItem({ playlist }: { playlist: UserPlaylist }) {
   return (
     <VStack alignment={'leading'} spacing={10}>
-      <HStack spacing={10}>
-        {playlist.active ? (
-          <PlayingIndicator />
-        ) : (
-          <Image systemName={'music.note'} size={18} />
-        )}
-        <Text weight={'semibold'}>{playlist.title}</Text>
+      <HStack>
+        <HStack spacing={10}>
+          {playlist.active ? (
+            <PlayingIndicator />
+          ) : (
+            <Image systemName={'music.note'} size={18} />
+          )}
+          <Text weight={'semibold'}>{playlist.title}</Text>
+        </HStack>
+        <Spacer minLength={10} />
+        <HStack spacing={4}>
+          {playlist.settings.usePreferences && (
+            <Image size={18} systemName={'heart'} />
+          )}
+          {playlist.settings.dontRepeatFromHistory && (
+            <Image size={18} systemName={'eyeglasses.slash'} />
+          )}
+        </HStack>
       </HStack>
       <Text weight={'light'} lineLimit={1}>
         {playlist.description}
@@ -141,30 +194,55 @@ function PlaylistPreview({ playlist }: { playlist: UserPlaylist }) {
   })
   const { width } = useWindowDimensions()
 
-  return (
-    <VStack
-      modifiers={[frame({ width: width }), padding({ vertical: 20 })]}
-      spacing={40}
-    >
-      <VStack
-        alignment={'leading'}
-        spacing={10}
-        modifiers={[padding({ horizontal: 20 })]}
-      >
-        <Text weight={'semibold'} size={20}>
-          {playlist.title}
-        </Text>
-        <Text>{playlist.description}</Text>
-      </VStack>
+  const settings: { icon: SFSymbols6_0; label: string; active: boolean }[] = [
+    {
+      icon: 'heart',
+      label: 'Use preferences',
+      active: !!playlist.settings.usePreferences,
+    },
+    {
+      icon: 'eyeglasses.slash',
+      label: "Don't repeat from history",
+      active: !!playlist.settings.dontRepeatFromHistory,
+    },
+  ]
 
-      {data?.device && (
-        <HStack spacing={10}>
-          <Spacer />
-          <PlayingIndicator />
-          <Text>{`Playing on ${data?.device.name}`}</Text>
-          <Spacer />
-        </HStack>
-      )}
+  const activeSettings = settings.filter((setting) => setting.active)
+
+  return (
+    <VStack modifiers={[frame({ width: width })]} alignment={'leading'}>
+      <VStack modifiers={[padding({ all: 20 })]} spacing={40}>
+        <VStack alignment={'leading'} spacing={10}>
+          <Text weight={'semibold'} size={18}>
+            {playlist.title}
+          </Text>
+          <Text color={'secondary'}>{playlist.description}</Text>
+        </VStack>
+
+        {activeSettings.length > 0 && (
+          <VStack spacing={5} alignment={'leading'}>
+            {activeSettings.map((setting, i) => (
+              <HStack key={i} spacing={20}>
+                <VStack
+                  alignment={'leading'}
+                  modifiers={[frame({ width: 20 })]}
+                >
+                  <Image size={18} systemName={setting.icon} />
+                </VStack>
+                <Text>{setting.label}</Text>
+              </HStack>
+            ))}
+          </VStack>
+        )}
+        {data?.device && (
+          <HStack spacing={10}>
+            <Spacer />
+            <PlayingIndicator />
+            <Text>{`Playing on ${data?.device.name}`}</Text>
+            <Spacer />
+          </HStack>
+        )}
+      </VStack>
     </VStack>
   )
 }

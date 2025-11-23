@@ -16,6 +16,7 @@ export async function GET(request: Request) {
         title: playlists.title,
         description: playlists.description,
         ownerId: playlists.ownerId,
+        settings: playlists.settings,
         lastPlayedAt: max(playSessions.startedAt),
         active:
           // for some reason, when no playSessions are found, 'active' is true

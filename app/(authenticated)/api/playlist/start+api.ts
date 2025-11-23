@@ -76,8 +76,8 @@ export async function POST(request: Request) {
     const queuePlaylist = await spotifyApi.playlists.createPlaylist(
       spotifyUser.id,
       {
-        name: `Play4Me • ${userPlaylist.title}`,
-        description: userPlaylist.description,
+        name: `Play4Me • ${userPlaylist.title.slice(0, 30)}`,
+        description: userPlaylist.description.slice(0, 100),
         public: false,
       }
     )
