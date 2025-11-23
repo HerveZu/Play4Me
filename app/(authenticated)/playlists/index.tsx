@@ -67,7 +67,7 @@ export default function HomePage() {
                 ? capitalizeFirstLetter(
                     formatRelative(day, new Date(), {}).split('at')[0]
                   )
-                : 'Never played yet'
+                : undefined
             }
           >
             {playlists.map((playlist) => (
