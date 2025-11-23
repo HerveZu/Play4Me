@@ -28,7 +28,7 @@ function Tabs() {
         <Label>New Playlist</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="player" role={'search'}>
-        <Icon sf="speaker.2" />
+        <Icon sf="waveform" />
         <Label>Player</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">

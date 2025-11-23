@@ -88,12 +88,12 @@ export default function HomePage() {
                 </ContextMenu.Trigger>
                 <ContextMenu.Items>
                   <Button
-                    systemImage={'play'}
+                    systemImage={'waveform'}
                     onPress={() =>
                       router.push(`/player?playlistId=${playlist.id}`)
                     }
                   >
-                    Play
+                    Player
                   </Button>
                   <Button
                     role={'destructive'}
