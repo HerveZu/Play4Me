@@ -87,7 +87,10 @@ export default function NewPlaylistPage() {
             onValueChange={(usePreferences) =>
               setPlaylistDetails((playlist) => ({
                 ...playlist,
-                usePreferences,
+                settings: {
+                  ...playlist.settings,
+                  usePreferences,
+                },
               }))
             }
             label={'Use my preferences'}
@@ -97,7 +100,10 @@ export default function NewPlaylistPage() {
             onValueChange={(dontRepeatFromHistory) =>
               setPlaylistDetails((playlist) => ({
                 ...playlist,
-                dontRepeatFromHistory,
+                settings: {
+                  ...playlist.settings,
+                  dontRepeatFromHistory,
+                },
               }))
             }
             label="Don't repeat from history"
