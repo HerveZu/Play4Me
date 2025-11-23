@@ -18,7 +18,9 @@ export async function GET(request: Request) {
         ownerId: playlists.ownerId,
         lastPlayedAt: max(playSessions.startedAt),
         active:
-          sql<boolean>`count(case when ${playSessions.stoppedAt} is null then 1 else null end) > 0`.as(
+          // for some reason, when no playSessions are found, 'active' is true
+          // -> added explicit check for null stoppedAt
+          sql<boolean>`count(${playSessions.id}) > 0 and count(case when ${playSessions.stoppedAt} is null then 1 else null end) > 0`.as(
             'active'
           ),
       })
@@ -26,8 +28,12 @@ export async function GET(request: Request) {
       .leftJoin(playSessions, eq(playlists.id, playSessions.playlistId))
       .where(eq(playlists.ownerId, session.user.id))
       .groupBy(playlists.id)
-      .orderBy(desc(max(playSessions.startedAt)))
-
+      .orderBy(
+        desc(
+          // forces playlists without sessions to be last
+          sql`coalesce(${max(playSessions.startedAt)}, ${sql.raw(`'1970-01-01 00:00:00'`)})`
+        )
+      )
     return Response.json(userPlaylists as UserPlaylist[])
   })
 }

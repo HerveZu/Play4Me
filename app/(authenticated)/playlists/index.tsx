@@ -58,9 +58,13 @@ export default function HomePage() {
         {playlistsPerDay.map(([day, playlists]) => (
           <Section
             key={day.toString()}
-            title={capitalizeFirstLetter(
-              formatRelative(day, new Date(), {}).split('at')[0]
-            )}
+            title={
+              day !== 'never'
+                ? capitalizeFirstLetter(
+                    formatRelative(day, new Date(), {}).split('at')[0]
+                  )
+                : 'Never played yet'
+            }
           >
             {playlists.map((playlist) => (
               <HStack
