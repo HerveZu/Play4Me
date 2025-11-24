@@ -4,7 +4,7 @@ import { usePlaylists } from '@/providers/playlists'
 import { useNavigation, useRouter } from 'expo-router'
 import { useMutation } from '@tanstack/react-query'
 import { HeaderButton } from '@/lib/HeaderButton'
-import { frame } from '@expo/ui/swift-ui/modifiers'
+import { disabled } from '@expo/ui/swift-ui/modifiers'
 import { z } from 'zod'
 
 const CreatePlaylistInputSchema = z.object({
@@ -19,7 +19,7 @@ const CreatePlaylistInputSchema = z.object({
 export default function NewPlaylistPage() {
   const [playlistDetails, setPlaylistDetails] = useState({
     title: '',
-    description: '',
+    description: '\n\n\n\n', // makes the input field taller (without using padding)
     settings: {
       usePreferences: true,
       dontRepeatFromHistory: true,
@@ -38,7 +38,7 @@ export default function NewPlaylistPage() {
     },
   })
 
-  const disabled = useMemo(
+  const saveDisabled = useMemo(
     () =>
       isPending || !!CreatePlaylistInputSchema.safeParse(playlistDetails).error,
     [isPending, playlistDetails]
@@ -48,19 +48,20 @@ export default function NewPlaylistPage() {
     navigation.setOptions({
       headerRight: () => (
         <HeaderButton
-          disabled={disabled}
+          disabled={saveDisabled}
           sfSymbol={'checkmark'}
           onPress={() => handleCreatePlaylist()}
         />
       ),
     })
-  }, [disabled, handleCreatePlaylist, navigation])
+  }, [saveDisabled, handleCreatePlaylist, navigation])
 
   return (
     <Host style={{ flex: 1 }}>
       <Form>
         <Section>
           <TextField
+            modifiers={isPending ? [disabled()] : []}
             placeholder="Title"
             defaultValue={playlistDetails.title}
             onChangeText={(title) =>
@@ -71,13 +72,14 @@ export default function NewPlaylistPage() {
 
         <Section title="Describe what'd you like to listen to">
           <TextField
+            modifiers={isPending ? [disabled()] : []}
             placeholder={' '} // Empty strings break it
             defaultValue={playlistDetails.description}
             onChangeText={(description) =>
               setPlaylistDetails((playlist) => ({ ...playlist, description }))
             }
             multiline
-            modifiers={[frame({ minHeight: 100 })]}
+            allowNewlines
           />
         </Section>
 
