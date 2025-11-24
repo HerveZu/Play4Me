@@ -9,7 +9,7 @@ import {
   zIndex,
 } from '@expo/ui/swift-ui/modifiers'
 import { useTheme } from '@react-navigation/core'
-import { useColorScheme } from 'react-native'
+import { AppState, useColorScheme } from 'react-native'
 
 export type VinylState = 'paused' | 'pending' | 'playing'
 
@@ -48,11 +48,25 @@ export function VinylDisk({
 
   useEffect(() => {
     if (state !== 'playing') return
-    const handler = setInterval(() => {
-      setRotation((rotation) => rotation + 5)
-    }, 1000 / VinyConst.FPS)
+    function startInterval() {
+      return setInterval(() => {
+        setRotation((rotation) => rotation + 5)
+      }, 1000 / VinyConst.FPS)
+    }
+    let handler = startInterval()
 
-    return () => clearInterval(handler)
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState !== 'active') {
+        clearInterval(handler)
+      } else {
+        handler = startInterval()
+      }
+    })
+
+    return () => {
+      clearInterval(handler)
+      subscription.remove()
+    }
   }, [state])
 
   const innerDiskSize = useMemo(() => 0.4 * size, [size])

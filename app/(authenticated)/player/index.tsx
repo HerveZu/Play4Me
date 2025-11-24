@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   CircularProgress,
   Form,
@@ -18,10 +18,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getClientSpotifyApi } from '@/lib/spotify/client'
 import { milliseconds } from 'date-fns'
 import { PlayingIndicator } from '@/lib/PlayingIndicator'
-import { VinylDisk, VinylState } from '@/lib/VinylDisk'
+import { VinylDisk } from '@/lib/VinylDisk'
 import { Image as ExpoImage } from 'expo-image'
 
-export default function NewPlaylistPage() {
+export default function PlayerPage() {
   const { playlists, start, stop } = usePlaylists()
   const { defaultPlaybackDevice } = usePlayback()
   const { playlistId } = useLocalSearchParams()
@@ -48,16 +48,8 @@ export default function NewPlaylistPage() {
     [playlist, playlists]
   )
 
-  const [state, setState] = useState<VinylState>(
-    isActive ? 'playing' : 'paused'
-  )
-
-  useEffect(() => {
-    setState(isActive ? 'playing' : 'paused')
-  }, [isActive])
-
-  const { mutateAsync: controlPlaylist } = useMutation({
-    mutationKey: ['control-playlist', state],
+  const { mutateAsync: controlPlaylist, isPending } = useMutation({
+    mutationKey: ['control-playlist', isActive],
     mutationFn: async ({
       playlistId,
       deviceId,
@@ -65,22 +57,13 @@ export default function NewPlaylistPage() {
       playlistId: string
       deviceId: string
     }) => {
-      setState('pending')
-
-      try {
-        switch (state) {
-          case 'paused':
-            await start({
-              playlistId,
-              deviceId,
-            })
-            return
-          case 'playing':
-            await stop({ playlistId })
-            return
-        }
-      } finally {
-        setState(state)
+      if (isActive) {
+        await stop({ playlistId })
+      } else {
+        await start({
+          playlistId,
+          deviceId,
+        })
       }
     },
     onSuccess: () =>
@@ -93,7 +76,7 @@ export default function NewPlaylistPage() {
         <Section modifiers={[padding({ vertical: 4 })]}>
           <HStack
             onPress={() =>
-              state !== 'pending' &&
+              !isPending &&
               defaultPlaybackDevice?.id &&
               controlPlaylist({
                 playlistId: playlist.id,
@@ -102,18 +85,19 @@ export default function NewPlaylistPage() {
             }
           >
             <Spacer />
-            <VinylDisk size={260} state={state} />
+            <VinylDisk
+              size={260}
+              state={isPending ? 'pending' : isActive ? 'playing' : 'paused'}
+            />
             <Spacer />
           </HStack>
           <HStack alignment={'center'} spacing={10}>
-            {state === 'pending' && <CircularProgress />}
+            {isPending && <CircularProgress />}
             <HStack spacing={10}>
               <Spacer />
               {defaultPlaybackDevice ? (
                 <>
-                  <Text>
-                    {state === 'playing' ? `Tap to pause` : `Tap to play`}
-                  </Text>
+                  <Text>{isActive ? `Tap to pause` : `Tap to play`}</Text>
                   <Image systemName={'circle.fill'} size={5} />
                   <Text weight={'light'} lineLimit={1}>
                     {defaultPlaybackDevice.name}
