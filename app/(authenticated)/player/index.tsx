@@ -120,7 +120,7 @@ export default function NewPlaylistPage() {
                   </Text>
                 </>
               ) : (
-                <Text>No active device</Text>
+                <Text>Play music on Spotify to start</Text>
               )}
               <Spacer />
             </HStack>
