@@ -83,8 +83,8 @@ export async function POST(request: Request) {
       queuePlaylist = await spotifyApi.playlists.createPlaylist(
         spotifyUser.id,
         {
-          name: `Play4Me • ${userPlaylist.title.slice(0, 30)}`,
-          description: userPlaylist.description.slice(0, 100),
+          name: `Play4Me • ${userPlaylist.title.slice(0, 30).trim()}`,
+          description: userPlaylist.description.slice(0, 100).trim(),
           public: false,
         }
       )

@@ -33,7 +33,11 @@ export default function NewPlaylistPage() {
   const { mutate: handleCreatePlaylist, isPending } = useMutation({
     mutationKey: ['create-playlist', playlistDetails],
     mutationFn: async () => {
-      const playlist = await createPlaylist(playlistDetails)
+      const playlist = await createPlaylist({
+        title: playlistDetails.title.trim(),
+        description: playlistDetails.title.trim(),
+        settings: playlistDetails.settings,
+      })
       router.push(`/player?playlistId=${playlist.id}`)
     },
   })
