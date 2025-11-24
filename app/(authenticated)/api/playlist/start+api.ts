@@ -2,16 +2,16 @@ import { withSession } from '@/lib/auth'
 import { db } from '@/db'
 import {
   Playlist,
+  PlaylistQueue,
   playlistQueues,
   playlists,
   PlaySession,
   playSessions,
 } from '@/db/schema/public'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { getServerSpotifyApi } from '@/lib/spotify/server'
 import { llmSearchTracks } from '@/lib/llmSearchTracks'
 import { Playlist as SpotifyPlaylist } from '@spotify/web-api-ts-sdk'
-import { unfollowPlaylist } from '@/lib/spotify'
 
 export type StartPlaylistInput = {
   playlistId: string
@@ -37,53 +37,68 @@ export async function POST(request: Request) {
       sessionIds: stoppedSessions.map((s) => s.id),
     })
 
-    let [[queue], [userPlaylist]] = await Promise.all([
-      db
-        .select()
-        .from(playlistQueues)
-        .where(eq(playlistQueues.ownerId, authSession.user.id)),
-      db.select().from(playlists).where(eq(playlists.id, input.playlistId)),
-    ])
+    const userPlaylists = await db
+      .select()
+      .from(playlists)
+      .leftJoin(playSessions, eq(playlists.id, playSessions.playlistId))
+      .leftJoin(playlistQueues, eq(playSessions.queueId, playlistQueues.id))
+      .where(
+        and(
+          eq(playlists.id, input.playlistId),
+          eq(playlists.ownerId, authSession.user.id)
+        )
+      )
+      .orderBy(desc(playSessions.stoppedAt), desc(playSessions.startedAt))
+      .limit(1)
+
+    if (!userPlaylists) {
+      return Response.json({ error: 'Playlist not found' }, { status: 404 })
+    }
+
+    const { playlists: userPlaylist, playlist_queues: lastQueueUsed } =
+      userPlaylists[0]
 
     const spotifyApi = await getServerSpotifyApi({
       userId: authSession.user.id,
     })
-    const spotifyUser = await spotifyApi.currentUser.profile()
 
-    // refreshing the playlist has issues
-    // see: https://community.spotify.com/t5/Spotify-for-Developers/How-to-refresh-a-playlist-after-a-change/td-p/5076245
-    if (queue) {
-      const existingQueuePlaylist = await spotifyApi.playlists.getPlaylist(
-        queue.queuePlaylistId
-      )
-      if (existingQueuePlaylist) {
-        console.info('Playlist queue exists, deleting...', {
-          playlistId: queue.queuePlaylistId,
-        })
-
-        // unfollowing the playlist will delete it
-        await unfollowPlaylist(spotifyApi, existingQueuePlaylist.id)
-      }
+    let queuePlaylist: SpotifyPlaylist | null
+    try {
+      queuePlaylist = lastQueueUsed
+        ? await spotifyApi.playlists.getPlaylist(lastQueueUsed.queuePlaylistId)
+        : null
+    } catch {
+      queuePlaylist = null
     }
 
-    console.info('Creating a new queue playlist')
-    const queuePlaylist = await spotifyApi.playlists.createPlaylist(
-      spotifyUser.id,
-      {
-        name: `Play4Me • ${userPlaylist.title.slice(0, 30)}`,
-        description: userPlaylist.description.slice(0, 100),
-        public: false,
-      }
-    )
+    if (lastQueueUsed && queuePlaylist) {
+      console.log('Using existing queue playlist', {
+        queue: lastQueueUsed.id,
+        playlistId: lastQueueUsed.queuePlaylistId,
+      })
+    } else {
+      const spotifyUser = await spotifyApi.currentUser.profile()
 
-    if (queue) {
+      console.info('No queue last used, creating a new queue playlist...')
+      queuePlaylist = await spotifyApi.playlists.createPlaylist(
+        spotifyUser.id,
+        {
+          name: `Play4Me • ${userPlaylist.title.slice(0, 30)}`,
+          description: userPlaylist.description.slice(0, 100),
+          public: false,
+        }
+      )
+    }
+
+    let queue: PlaylistQueue
+    if (lastQueueUsed) {
       console.info('Updating queue with new playlist id')
       const [updatedQueue] = await db
         .update(playlistQueues)
         .set({
           queuePlaylistId: queuePlaylist.id,
         })
-        .where(eq(playlistQueues.id, queue.id))
+        .where(eq(playlistQueues.id, lastQueueUsed.id))
         .returning()
       queue = updatedQueue
     } else {
