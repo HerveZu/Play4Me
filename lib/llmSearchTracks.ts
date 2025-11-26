@@ -92,7 +92,7 @@ export async function llmSearchTracks({
     ],
   })
 
-  const musicSlots = MusicSlotsSchema.parse(result.text)
+  const musicSlots = MusicSlotsSchema.parse(JSON.parse(result.text ?? '[]'))
   const matchedTracks: Track[] = []
 
   for (const musicSlot of musicSlots) {
