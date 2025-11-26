@@ -65,9 +65,10 @@ export async function llmSearchTracks({
 
   const genAI = new GoogleGenAI({})
   const result = await genAI.models.generateContent({
-    model: 'gemini-flash-lite-latest',
+    model: 'gemini-flash-latest',
     config: {
       responseJsonSchema: z.toJSONSchema(MusicSlotsSchema),
+      responseMimeType: 'application/json',
     },
     contents: [
       `
