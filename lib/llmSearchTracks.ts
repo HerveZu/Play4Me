@@ -67,7 +67,7 @@ export async function llmSearchTracks({
   const result = await genAI.models.generateContent({
     model: 'gemini-3-pro-preview',
     config: {
-      responseSchema: MusicSlotsSchema,
+      responseJsonSchema: z.toJSONSchema(MusicSlotsSchema),
     },
     contents: [
       `
