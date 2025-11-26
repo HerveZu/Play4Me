@@ -65,7 +65,7 @@ export async function llmSearchTracks({
 
   const genAI = new GoogleGenAI({})
   const result = await genAI.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-flash-lite-latest',
     config: {
       responseJsonSchema: z.toJSONSchema(MusicSlotsSchema),
     },
@@ -92,7 +92,7 @@ export async function llmSearchTracks({
     ],
   })
 
-  const musicSlots = MusicSlotsSchema.parse(result.data)
+  const musicSlots = MusicSlotsSchema.parse(result.text)
   const matchedTracks: Track[] = []
 
   for (const musicSlot of musicSlots) {
