@@ -6,8 +6,9 @@ import {
   PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
 } from 'react'
-import { Redirect } from 'expo-router'
+import { Redirect, SplashScreen } from 'expo-router'
 import { AuthSession } from '@/lib/auth'
 import { HTTPMethod } from 'better-call'
 import { makeUrl } from '@/lib/utils'
@@ -74,6 +75,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     },
     []
   )
+
+  useEffect(() => {
+    !isPending && !data && SplashScreen.hide()
+  }, [data, isPending])
 
   if (isPending) {
     return null
