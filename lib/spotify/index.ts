@@ -41,24 +41,3 @@ export function getSpotifyApi({
     }
   )
 }
-
-export async function unfollowPlaylist(
-  spotifyApi: SpotifyApi,
-  playlistId: string
-) {
-  const result = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}/followers`,
-    {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${(await spotifyApi.getAccessToken())?.access_token}`,
-      },
-    }
-  )
-
-  if (!result.ok) {
-    throw new Error(
-      `Failed to delete playlist followers (${result.status}) ${await result.text()}`
-    )
-  }
-}
