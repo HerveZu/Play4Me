@@ -3,6 +3,7 @@ import { Device } from '@spotify/web-api-ts-sdk'
 import { useStorageState } from '@/lib/useStorageState'
 import { useQuery } from '@tanstack/react-query'
 import { getClientSpotifyApi } from '@/lib/spotify/client'
+import { milliseconds } from 'date-fns'
 
 export function usePlayback(): PlaybackContextType {
   const context = useContext(PlaybackContext)
@@ -31,7 +32,8 @@ export function PlaybackProvider({ children }: PropsWithChildren) {
     useStorageState<PlaybackSettings>('play4me_playback_settings', {})
 
   const { data: devices } = useQuery({
-    queryKey: ['devices', playbackSettings.playbackDeviceId],
+    queryKey: ['devices'],
+    refetchInterval: milliseconds({ seconds: 30 }),
     queryFn: async () => {
       const spotifyApi = await getClientSpotifyApi()
       return await spotifyApi.player.getAvailableDevices()
